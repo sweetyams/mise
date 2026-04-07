@@ -1,0 +1,200 @@
+Type,Ingredient,Amount,Units,Have in pantry,Cook this week,Recipe,Type,Column 3,Ingredient
+Meat,Pork Belly,2.5,Pounds,false,false,Chashu,Meat,model,Pork Belly
+Meat,Chicken Breast,2,,false,false,Creamy Tuscan Tortellini Soup,Meat,model,Chicken Breast
+Meat,Chicken Breast,1.5,Pounds,false,false,The G.O.A.T. Widowmaker White Chicken Chili,Meat,model,Chicken Breast
+Meat,Flank Steak,2,Pounds,false,,Carne Asada Tacos,Meat,model,Flank Steak
+Meat,Chuck roast,4,Pounds,false,false,Chipotle Honey Pot Roast Tacos,Meat,model,Chuck roast
+Canned & Jarred,Tomato paste,75,Grams,false,false,Spicy Mushroom Lasagna,Canned & Jarred,model,Tomato paste
+Canned & Jarred,Tomato paste,4,Tablespoon,false,false,Ragu,Canned & Jarred,model,Tomato paste
+Canned & Jarred,Beef stock,2,Cup,true,false,Ragu,Canned & Jarred,model,Beef stock
+Canned & Jarred,Crushed tomatoes - Sam Marzano,2,Can,false,false,Ragu,Canned & Jarred,model,Crushed tomatoes - Sam Marzano
+Canned & Jarred,Butterbeans,580,Grams,false,false,Vegan Dip,Canned & Jarred,model,Butterbeans
+Canned & Jarred,Chicken broth,3,Cup,false,false,Shoyu Ramen,Canned & Jarred,model,Chicken broth
+Canned & Jarred,Chicken broth,6,Cup,false,false,The G.O.A.T. Widowmaker White Chicken Chili,Canned & Jarred,model,Chicken broth
+Canned & Jarred,Nurutomaki,,,false,false,Shoyu Ramen,Canned & Jarred,model,Nurutomaki
+Canned & Jarred,White beans,31,Ounces,false,false,The G.O.A.T. Widowmaker White Chicken Chili,Canned & Jarred,model,White beans
+Canned & Jarred,Salsa Verde,1,Cup,false,false,The G.O.A.T. Widowmaker White Chicken Chili,Canned & Jarred,model,Salsa Verde
+Canned & Jarred,Salsa Verde,1,Cup,false,false,Chipotle Honey Pot Roast Tacos,Canned & Jarred,model,Salsa Verde
+Vegetables,Carrots,5,,true,false,Ragu,Vegetables,model,Carrots
+Vegetables,Carrots,1,,true,false,Spicy Mushroom Lasagna,Vegetables,model,Carrots
+Vegetables,Celery,3,,false,false,Ragu,Vegetables,model,Celery
+Vegetables,Celery,1,,false,false,Creamy Tuscan Tortellini Soup,Vegetables,model,Celery
+Vegetables,Yellow Onion,2,,true,false,Ragu,Vegetables,model,Yellow Onion
+Vegetables,Yellow Onion,1,,true,true,Dal,Vegetables,model,Yellow Onion
+Vegetables,Yellow Onion,1,,true,false,Spicy Mushroom Lasagna,Vegetables,model,Yellow Onion
+Vegetables,Yellow Onion,0.5,,true,false,Creamy Tuscan Tortellini Soup,Vegetables,model,Yellow Onion
+Vegetables,Yellow Onion,1,,true,false,The G.O.A.T. Widowmaker White Chicken Chili,Vegetables,model,Yellow Onion
+Vegetables,Yellow Onion,2,,true,false,Chipotle Honey Pot Roast Tacos,Vegetables,model,Yellow Onion
+Vegetables,Garlic Cloves,12,,true,false,Ragu,Vegetables,model,Garlic Cloves
+Vegetables,Garlic Cloves,3,,true,false,Vegan Dip,Vegetables,model,Garlic Cloves
+Vegetables,Garlic Cloves,1,,true,false,Vegan Dip,Vegetables,model,Garlic Cloves
+Vegetables,Garlic Cloves,6,,true,true,Dal,Vegetables,model,Garlic Cloves
+Vegetables,Garlic Cloves,4,,true,false,Shoyu Ramen,Vegetables,model,Garlic Cloves
+Vegetables,Garlic Cloves,5,,true,false,Spicy Mushroom Lasagna,Vegetables,model,Garlic Cloves
+Vegetables,Garlic Cloves,3,,true,false,Creamy Tuscan Tortellini Soup,Vegetables,model,Garlic Cloves
+Vegetables,Garlic Cloves,4,,true,false,The G.O.A.T. Widowmaker White Chicken Chili,Vegetables,model,Garlic Cloves
+Vegetables,Garlic Cloves,4,,true,,Carne Asada Tacos,Vegetables,model,Garlic Cloves
+Vegetables,Garlic Cloves,2,,true,,Carne Asada Tacos,Vegetables,model,Garlic Cloves
+Vegetables,Garlic Cloves,2,,true,false,Chipotle Honey Pot Roast Tacos,Vegetables,model,Garlic Cloves
+Vegetables,Leeks,2,,false,false,Vegan Dip,Vegetables,model,Leeks
+Vegetables,Leeks,1,,false,false,Creamy Tuscan Tortellini Soup,Vegetables,model,Leeks
+Vegetables,Broccoli,1,,false,false,Vegan Dip,Vegetables,model,Broccoli
+Vegetables,Ginger,1,Tablespoon,true,true,Dal,Vegetables,model,Ginger
+Vegetables,Ginger,2,Teaspoon,true,false,Shoyu Ramen,Vegetables,model,Ginger
+Vegetables,Ginger,4,Slices,true,false,Chashu,Vegetables,model,Ginger
+Vegetables,Tomato,1,,false,true,Dal,Vegetables,model,Tomato
+Vegetables,Lime,,,true,true,Dal,Vegetables,model,Lime
+Vegetables,Lime,1,,true,,Carne Asada Tacos,Vegetables,model,Lime
+Vegetables,Lime,1,,true,,Carne Asada Tacos,Vegetables,model,Lime
+Vegetables,Lime,2,,true,false,Chipotle Honey Pot Roast Tacos,Vegetables,model,Lime
+Vegetables,Lime,12,,true,false,Groceries,Vegetables,model,Lime
+Vegetables,Shallot,2,,true,true,Dal,Vegetables,model,Shallot
+Vegetables,Tokyo Negi,1,,false,false,Chashu,Vegetables,model,Tokyo Negi
+Vegetables,Brown button mushrooms,750,Grams,false,false,Spicy Mushroom Lasagna,Vegetables,model,Brown button mushrooms
+Vegetables,Oyster Mushrooms,500,Grams,false,false,Spicy Mushroom Lasagna,Vegetables,model,Oyster Mushrooms
+Vegetables,Dried Porcini mushrooms,60,Grams,false,false,Spicy Mushroom Lasagna,Vegetables,model,Dried Porcini mushrooms
+Vegetables,Plum Tomatoes,2,,false,false,Spicy Mushroom Lasagna,Vegetables,model,Plum Tomatoes
+Vegetables,Crushed tomatoes,28,Ounces,false,false,Creamy Tuscan Tortellini Soup,Vegetables,model,Crushed tomatoes
+Vegetables,Jalapeño,1,,false,false,The G.O.A.T. Widowmaker White Chicken Chili,Vegetables,model,Jalapeño
+Vegetables,Jalapeño,,,false,,Carne Asada Tacos,Vegetables,model,Jalapeño
+Vegetables,Green Chilis,4.5,Ounces,false,false,The G.O.A.T. Widowmaker White Chicken Chili,Vegetables,model,Green Chilis
+Vegetables,Avocado,1,,false,,Carne Asada Tacos,Vegetables,model,Avocado
+Vegetables,Avocado,1,,false,false,Chipotle Honey Pot Roast Tacos,Vegetables,model,Avocado
+Vegetables,Avocado,8,,false,false,Groceries,Vegetables,model,Avocado
+Vegetables,Lettuce,,,false,,Carne Asada Tacos,Vegetables,model,Lettuce
+Vegetables,Potato,4,,false,,Carne Asada Tacos,Vegetables,model,Potato
+Vegetables,Potato,4,,false,false,Mexican Fries,Vegetables,model,Potato
+Spices,Rosemary,2,,true,false,Ragu,Spices,model,Rosemary
+Spices,Thyme,2,,true,false,Ragu,Spices,model,Thyme
+Spices,Kosher salt,,,true,false,Ragu,Spices,model,Kosher salt
+Spices,Kosher salt,1,Teaspoon,true,false,Naan,Spices,model,Kosher salt
+Spices,Kosher salt,2,Teaspoon,true,false,Shoyu Ramen,Spices,model,Kosher salt
+Spices,Kosher salt,20,Grams,true,,Sourdough Bread,Spices,model,Kosher salt
+Spices,Kosher salt,0.25,Teaspoon,true,false,Creamy Tuscan Tortellini Soup,Spices,model,Kosher salt
+Spices,Kosher salt,,,true,false,The G.O.A.T. Widowmaker White Chicken Chili,Spices,model,Kosher salt
+Spices,Cumin,1,Teaspoon,true,false,Vegan Dip,Spices,model,Cumin
+Spices,Cumin,0.5,Teaspoon,true,true,Dal,Spices,model,Cumin
+Spices,Cumin,2,Teaspoon,true,false,The G.O.A.T. Widowmaker White Chicken Chili,Spices,model,Cumin
+Spices,Cumin,1,Tablespoon,true,false,Chipotle Honey Pot Roast Tacos,Spices,model,Cumin
+Spices,Nutritional Yeast,15,Grams,false,false,Vegan Dip,Spices,model,Nutritional Yeast
+Spices,Paprika,1,Teaspoon,true,false,Vegan Dip,Spices,model,Paprika
+Spices,Cayenne Chili,2,,false,true,Dal,Spices,model,Cayenne Chili
+Spices,Curry leaves,8,,false,true,Dal,Spices,model,Curry leaves
+Spices,Turmeric,0.5,Teaspoon,true,true,Dal,Spices,model,Turmeric
+Spices,Garam Masala,0.13,Teaspoon,true,true,Dal,Spices,model,Garam Masala
+Spices,Cumin seeds,,,false,true,Dal,Spices,model,Cumin seeds
+Spices,Mustard seeds,,,false,true,Dal,Spices,model,Mustard seeds
+Spices,Dried chilis,3,,false,true,Dal,Spices,model,Dried chilis
+Spices,Cardamom,1,Tablespoon,false,true,Dal,Spices,model,Cardamom
+Spices,White pepper powder,0.25,Teaspoon,false,false,Shoyu Ramen,Spices,model,White pepper powder
+Spices,Dried Red Chili,2,,false,false,Spicy Mushroom Lasagna,Spices,model,Dried Red Chili
+Spices,Red pepper flakes,,,false,false,Creamy Tuscan Tortellini Soup,Spices,model,Red pepper flakes
+Spices,Smoked Paprika,0.5,Teaspoon,true,false,The G.O.A.T. Widowmaker White Chicken Chili,Spices,model,Smoked Paprika
+Spices,Smoked Paprika,1,Teaspoon,true,,Carne Asada Tacos,Spices,model,Smoked Paprika
+Spices,Smoked Paprika,1,Teaspoon,true,,Carne Asada Tacos,Spices,model,Smoked Paprika
+Spices,Smoked Paprika,1,Tablespoon,true,false,Chipotle Honey Pot Roast Tacos,Spices,model,Smoked Paprika
+Spices,Smoked Paprika,1,Teaspoon,true,false,Mexican Fries,Spices,model,Smoked Paprika
+Spices,Chili powder,0.5,Teaspoon,false,false,The G.O.A.T. Widowmaker White Chicken Chili,Spices,model,Chili powder
+Spices,Chili powder,2,Tablespoon,false,false,Chipotle Honey Pot Roast Tacos,Spices,model,Chili powder
+Spices,Oregano,0.5,Teaspoon,false,false,The G.O.A.T. Widowmaker White Chicken Chili,Spices,model,Oregano
+Spices,Ground Coriander,0.5,Teaspoon,true,false,The G.O.A.T. Widowmaker White Chicken Chili,Spices,model,Ground Coriander
+Spices,Cayenne Pepper,0.25,Teaspoon,true,false,The G.O.A.T. Widowmaker White Chicken Chili,Spices,model,Cayenne Pepper
+Spices,Black pepper,,,false,false,The G.O.A.T. Widowmaker White Chicken Chili,Spices,model,Black pepper
+Spices,Chipotle powder,1,Tablespoon,true,,Carne Asada Tacos,Spices,model,Chipotle powder
+Spices,Chipotle powder,1,Teaspoon,true,,Carne Asada Tacos,Spices,model,Chipotle powder
+Spices,Chipotle powder,1,Tablespoon,true,false,Chipotle Honey Pot Roast Tacos,Spices,model,Chipotle powder
+Spices,Chipotle powder,1,Teaspoon,true,false,Mexican Fries,Spices,model,Chipotle powder
+Spices,Onion Powder,2,Teaspoon,false,,Carne Asada Tacos,Spices,model,Onion Powder
+Spices,Garlic powder,1,Teaspoon,false,,Carne Asada Tacos,Spices,model,Garlic powder
+Spices,Garlic powder,1,Tablespoon,false,false,Chipotle Honey Pot Roast Tacos,Spices,model,Garlic powder
+Spices,Garlic powder,1,Teaspoon,false,false,Mexican Fries,Spices,model,Garlic powder
+Spices,Dried Oregano,1,Tablespoon,false,false,Chipotle Honey Pot Roast Tacos,Spices,model,Dried Oregano
+Dairy & Eggs,Heavy Cream,1,,false,false,Ragu,Dairy & Eggs,model,Heavy Cream
+Dairy & Eggs,Heavy Cream,135,Milliliters,false,false,Spicy Mushroom Lasagna,Dairy & Eggs,model,Heavy Cream
+Dairy & Eggs,Heavy Cream,1,Cup,false,false,Creamy Tuscan Tortellini Soup,Dairy & Eggs,model,Heavy Cream
+Dairy & Eggs,Silken Tofu,280,Grams,false,false,Vegan Dip,Dairy & Eggs,model,Silken Tofu
+Dairy & Eggs,Greek yogurt,,,false,true,Dal,Dairy & Eggs,model,Greek yogurt
+Dairy & Eggs,Greek yogurt,0.5,Cup,false,,Carne Asada Tacos,Dairy & Eggs,model,Greek yogurt
+Dairy & Eggs,Greek yogurt,1,Cup,false,false,Chipotle Honey Pot Roast Tacos,Dairy & Eggs,model,Greek yogurt
+Dairy & Eggs,Greek yogurt,,,false,false,Groceries,Dairy & Eggs,model,Greek yogurt
+Dairy & Eggs,Plain yogurt,3,Tablespoon,false,false,Naan,Dairy & Eggs,model,Plain yogurt
+Dairy & Eggs,Salted butter,2,Tablespoon,false,false,Naan,Dairy & Eggs,model,Salted butter
+Dairy & Eggs,Unsalted Butter,1,Tablespoon,false,false,Creamy Tuscan Tortellini Soup,Dairy & Eggs,model,Unsalted Butter
+Dairy & Eggs,Sour Cream,0.5,Cup,false,false,The G.O.A.T. Widowmaker White Chicken Chili,Dairy & Eggs,model,Sour Cream
+Oils & Vinegars,Olive oil,2,Tablespoon,true,false,Ragu,Oils & Vinegars,model,Olive oil
+Oils & Vinegars,Olive oil,2,Tablespoon,true,false,Naan,Oils & Vinegars,model,Olive oil
+Oils & Vinegars,Olive oil,2,Tablespoon,true,false,Creamy Tuscan Tortellini Soup,Oils & Vinegars,model,Olive oil
+Oils & Vinegars,Olive oil,2,Tablespoon,true,false,The G.O.A.T. Widowmaker White Chicken Chili,Oils & Vinegars,model,Olive oil
+Oils & Vinegars,Olive oil,2,Tablespoon,true,,Carne Asada Tacos,Oils & Vinegars,model,Olive oil
+Oils & Vinegars,Olive oil,3,Tablespoon,true,,Carne Asada Tacos,Oils & Vinegars,model,Olive oil
+Oils & Vinegars,Olive oil,3,Tablespoon,true,false,Mexican Fries,Oils & Vinegars,model,Olive oil
+Oils & Vinegars,Lemon Juice,1,Tablespoon,false,false,Vegan Dip,Oils & Vinegars,model,Lemon Juice
+Oils & Vinegars,Neutral oil,1,Tablespoon,false,false,Chashu,Oils & Vinegars,model,Neutral oil
+Baking,All purpose flour,2,Cup,true,false,Naan,Baking,model,All purpose flour
+Baking,Sugar,1,Tablespoon,true,false,Naan,Baking,model,Sugar
+Baking,Sugar,0.67,Cup,true,false,Chashu,Baking,model,Sugar
+Baking,Instant Yeast,1,Teaspoon,true,false,Naan,Baking,model,Instant Yeast
+Herbs (fresh),Coriander,1,Teaspoon,true,false,Vegan Dip,Herbs (fresh),model,Coriander
+Herbs (fresh),Coriander,1,,true,true,Dal,Herbs (fresh),model,Coriander
+Herbs (fresh),Italian parsley,1,,false,false,Naan,Herbs (fresh),model,Italian parsley
+Herbs (fresh),Italian parsley,10,Grams,false,false,Spicy Mushroom Lasagna,Herbs (fresh),model,Italian parsley
+Herbs (fresh),Green Scallion,1,,false,false,Shoyu Ramen,Herbs (fresh),model,Green Scallion
+Herbs (fresh),Basil Leaves,5,Grams,false,false,Spicy Mushroom Lasagna,Herbs (fresh),model,Basil Leaves
+Herbs (fresh),Fresh Cilantro,0.5,Cup,true,false,The G.O.A.T. Widowmaker White Chicken Chili,Herbs (fresh),model,Fresh Cilantro
+Herbs (fresh),Fresh Cilantro,0.5,Cup,true,,Carne Asada Tacos,Herbs (fresh),model,Fresh Cilantro
+Herbs (fresh),Fresh Cilantro,1,,true,false,Chipotle Honey Pot Roast Tacos,Herbs (fresh),model,Fresh Cilantro
+Herbs (fresh),Fresh Cilantro,3,,true,false,Groceries,Herbs (fresh),model,Fresh Cilantro
+Herbs (fresh),Green Onion,1,,false,false,Chipotle Honey Pot Roast Tacos,Herbs (fresh),model,Green Onion
+Rice & Grains,Chana Dal,1,Cup,false,true,Dal,Rice & Grains,model,Chana Dal
+Rice & Grains,Basmati Rice,500,Grams,false,true,Dal,Rice & Grains,model,Basmati Rice
+Pasta,White flour,550,Grams,false,,Sourdough Bread,Pasta,model,White flour
+Pasta,Dried Lasagne Sheets,250,Grams,false,false,Spicy Mushroom Lasagna,Pasta,model,Dried Lasagne Sheets
+Pasta,Tortellini,12,Ounces,false,false,Creamy Tuscan Tortellini Soup,Pasta,model,Tortellini
+Sauces,White Miso,1,Tablespoon,true,false,Vegan Dip,Sauces,model,White Miso
+Sauces,Dijon Mustard,1,Teaspoon,true,false,Vegan Dip,Sauces,model,Dijon Mustard
+Sauces,Ghee,30,Grams,false,true,Dal,Sauces,model,Ghee
+Sauces,Ghee,20,Grams,false,true,Dal,Sauces,model,Ghee
+Sauces,Toasted Sesame Oil,2,Tablespoon,true,false,Shoyu Ramen,Sauces,model,Toasted Sesame Oil
+Sauces,Doubanjiang,4,Teaspoon,false,false,Shoyu Ramen,Sauces,model,Doubanjiang
+Sauces,Soy Sauce,5,Tablespoon,true,false,Shoyu Ramen,Sauces,model,Soy Sauce
+Sauces,Soy Sauce,1,Cup,true,false,Chashu,Sauces,model,Soy Sauce
+Sauces,Honey,1,Tablespoon,true,,Carne Asada Tacos,Sauces,model,Honey
+Sauces,Honey,1,Tablespoon,true,false,Chipotle Honey Pot Roast Tacos,Sauces,model,Honey
+Nuts & Seeds,Cashews,35,Grams,false,false,Vegan Dip,Nuts & Seeds,model,Cashews
+Nuts & Seeds,Anise seed,0.5,Teaspoon,false,false,Naan,Nuts & Seeds,model,Anise seed
+,,,,,,,,model,
+,Beef Shoulder,4,Pounds,false,false,Ragu,,model,Beef Shoulder
+,Garlic head,4,,false,false,Groceries,,model,Garlic head
+,Queso Fresco,,,true,false,Groceries,,model,Queso Fresco
+,Corn Taco Shell,50,,true,false,Groceries,,model,Corn Taco Shell
+Alcohol,Red wine,2,Cup,true,false,Ragu,Alcohol,model,Red wine
+Alcohol,Sake,1,Cup,false,false,Chashu,Alcohol,model,Sake
+Alcohol,White Wine,0.5,Cup,false,false,Creamy Tuscan Tortellini Soup,Alcohol,model,White Wine
+Alcohol,Mexican Beer,1,,false,,Carne Asada Tacos,Alcohol,model,Mexican Beer
+Basics,Warm water,0.75,Cup,true,false,Naan,Basics,model,Warm water
+Basics,Water,4,Cup,true,false,Dashi,Basics,model,Water
+Basics,Water,2,Cup,true,false,Chashu,Basics,model,Water
+Basics,Water,450,Grams,true,,Sourdough Bread,Basics,model,Water
+Basics,Water,800,Milliliters,true,false,Spicy Mushroom Lasagna,Basics,model,Water
+Basics,Vegetable Stock,500,Milliliters,false,false,Spicy Mushroom Lasagna,Basics,model,Vegetable Stock
+Basics,Chicken stock,4,Cup,false,false,Creamy Tuscan Tortellini Soup,Basics,model,Chicken stock
+Basics,Pink Himalayan salt,1,Teaspoon,false,false,Chipotle Honey Pot Roast Tacos,Basics,model,Pink Himalayan salt
+Asian,Nori,1,,false,false,Shoyu Ramen,Asian,model,Nori
+Asian,Kombu,1,,false,false,Dashi,Asian,model,Kombu
+Asian,Katsuobushi,1,Cup,false,false,Dashi,Asian,model,Katsuobushi
+Recipe,Dashi,3,Cup,false,false,Shoyu Ramen,Recipe,model,Dashi
+Bread,Starter,454,Grams,false,,Sourdough Bread,Bread,model,Starter
+Bread,Rye,200,Grams,false,,Sourdough Bread,Bread,model,Rye
+Bread,Corn tortillas,,,false,,Carne Asada Tacos,Bread,model,Corn tortillas
+Bread,Soft Taco Shells,12,,false,false,Chipotle Honey Pot Roast Tacos,Bread,model,Soft Taco Shells
+Cheese,Pecorino,60,Grams,false,false,Spicy Mushroom Lasagna,Cheese,model,Pecorino
+Cheese,Parmesan,60,Grams,false,false,Spicy Mushroom Lasagna,Cheese,model,Parmesan
+Cheese,Parmesan Rind,1,,false,false,Creamy Tuscan Tortellini Soup,Cheese,model,Parmesan Rind
+Cheese,Pepper Jack Cheese,1,Cup,false,false,The G.O.A.T. Widowmaker White Chicken Chili,Cheese,model,Pepper Jack Cheese
+Cheese,Cream Cheese,8,Ounces,false,false,The G.O.A.T. Widowmaker White Chicken Chili,Cheese,model,Cream Cheese
+Cheese,Feta cheese,,,false,,Carne Asada Tacos,Cheese,model,Feta cheese
+Cheese,Feta cheese,1,,false,false,Groceries,Cheese,model,Feta cheese
+Cheese,Cotija Cheese,,,,false,Chipotle Honey Pot Roast Tacos,Cheese,model,Cotija Cheese
+Pickled,Pickled onion,,,false,,Carne Asada Tacos,Pickled,model,Pickled onion
+Pickled,Pickled Jalapenos,1,Cup,false,false,Chipotle Honey Pot Roast Tacos,Pickled,model,Pickled Jalapenos
+Juice,Orange Juice,1,Cup,false,false,Chipotle Honey Pot Roast Tacos,Juice,model,Orange Juice
