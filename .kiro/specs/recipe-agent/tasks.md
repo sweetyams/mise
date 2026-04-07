@@ -208,11 +208,11 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Each ingredient amount = `roundToKitchenPrecision(original.amount * multiplier)`, units unchanged
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6_
 
-- [ ] 8. Checkpoint — Recipe generation
+- [x] 8. Checkpoint — Recipe generation
   - Ensure generation API streams correctly, Zod validation catches invalid output and retries, batch scaler produces correct values across components. Ask the user if questions arise.
 
-- [ ] 9. Seven Display Modes (Frontend)
-  - [ ] 9.1 Implement all seven display renderer functions
+- [x] 9. Seven Display Modes (Frontend)
+  - [x] 9.1 Implement all seven display renderer functions
     - Create `/lib/display-renderers/index.ts` exporting all 7 renderers
     - All renderers are pure functions over stored Recipe JSON — no API calls, no markdown storage
     - Implement `renderFullRecipe(recipe): string` — default view, all components with ingredients, steps, doneness cues, notes, thinking section
@@ -224,13 +224,13 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Implement `renderRiff(recipe): string` — intention and architecture only, no amounts
     - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7, 19.8_
 
-  - [ ] 9.2 Build display mode switcher UI
+  - [x] 9.2 Build display mode switcher UI
     - Add display mode tabs/dropdown to recipe detail page: Full Recipe, Brief, Cook, Flavour Map, Shopping List, Timeline, Riff
     - Switching modes renders immediately from stored JSON — no API call
     - Default to Full Recipe mode
     - _Requirements: 19.1, 19.9_
 
-  - [ ] 9.3 Implement Shopping List with Quality Highlight and pantry personalization
+  - [x] 9.3 Implement Shopping List with Quality Highlight and pantry personalization
     - `renderShoppingList` aggregates ingredients across all components, deduplicates by name (summing quantities)
     - Groups by store section (produce, dairy, meat, pantry, spice, etc.)
     - Marks ingredients matching user's `pantry_constants` (from Chef Brain / users table) as "already have"
@@ -238,8 +238,8 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Quality Highlight is concise, actionable, explains why this ingredient matters for this dish
     - _Requirements: 21.1, 21.2, 21.3, 21.4_
 
-- [ ] 10. Complexity Modes
-  - [ ] 10.1 Implement complexity mode logic and user preference storage
+- [x] 10. Complexity Modes
+  - [x] 10.1 Implement complexity mode logic and user preference storage
     - Create `/lib/complexity-modes.ts` with mode definitions and prompt instructions
     - Foundation: extra explanation at each step, doneness cues at every stage, conservative seasoning, proactive substitutions
     - Kitchen (default): professional but approachable, standard detail
@@ -248,7 +248,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Allow per-recipe override stored in `recipes.complexity_mode`
     - _Requirements: 20.1, 20.2, 20.3, 20.4, 20.7, 20.8_
 
-  - [ ] 10.2 Build complexity mode UI (selection before/after generation, user default, per-recipe override)
+  - [x] 10.2 Build complexity mode UI (selection before/after generation, user default, per-recipe override)
     - Complexity mode selector on canvas page (before generation)
     - Complexity mode switcher on recipe detail page (after generation — triggers regeneration at new level)
     - Settings page: set default complexity mode

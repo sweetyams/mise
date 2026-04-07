@@ -16,6 +16,7 @@ import { getSystemCore } from '@/lib/system-core';
 import { getFingerprint } from '@/lib/fingerprint-cache';
 import { getCachedBrain } from '@/lib/brain-compiler';
 import { createAIProvider } from '@/lib/ai-provider';
+import { COMPLEXITY_INSTRUCTIONS } from '@/lib/complexity-modes';
 
 // ---------------------------------------------------------------------------
 // Request context — built from UI state (Layer 4)
@@ -37,30 +38,6 @@ export interface RequestContext {
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
-
-// ---------------------------------------------------------------------------
-// Complexity mode instructions
-// ---------------------------------------------------------------------------
-
-const COMPLEXITY_INSTRUCTIONS: Record<ComplexityMode, string> = {
-  foundation: `COMPLEXITY MODE: Foundation (Learning)
-- Provide extra explanation at each step
-- Include doneness cues at every stage
-- Use conservative seasoning amounts
-- Proactively suggest substitutions for uncommon ingredients
-- Explain technique reasons in detail`,
-
-  kitchen: `COMPLEXITY MODE: Kitchen (Professional)
-- Professional but approachable tone
-- Standard detail level
-- Assume competent home cook`,
-
-  riff: `COMPLEXITY MODE: Riff (Architecture Only)
-- Provide architecture and intention only
-- No precise amounts — use ratios and feel
-- Minimal step-by-step instructions
-- Focus on flavour logic and technique principles`,
-};
 
 // ---------------------------------------------------------------------------
 // buildRequestContext — constructs Layer 4 from UI state

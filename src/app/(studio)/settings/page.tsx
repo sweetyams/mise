@@ -1,6 +1,15 @@
 'use client';
 
+// =============================================================================
+// MISE Settings Page — Account & Preferences
+// =============================================================================
+// Displays subscription info and allows setting default complexity mode.
+// Requirements: 13.7, 20.7
+// =============================================================================
+
 import { useEffect, useState } from 'react';
+import type { ComplexityMode } from '@/lib/types/recipe';
+import { COMPLEXITY_MODE_OPTIONS } from '@/lib/complexity-modes';
 
 interface BillingInfo {
   tier: string;
@@ -18,6 +27,9 @@ const TIER_LABELS: Record<string, string> = {
 export default function SettingsPage() {
   const [billing, setBilling] = useState<BillingInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [defaultComplexity, setDefaultComplexity] = useState<ComplexityMode>('kitchen');
+  const [savingComplexity, setSavingComplexity] = useState(false);
+  const [complexitySaved, setComplexitySaved] = useState(false);
 
   useEffect(() => {
     async function fetchBilling() {
@@ -36,6 +48,26 @@ export default function SettingsPage() {
     fetchBilling();
   }, []);
 
+  const handleComplexityChange = async (mode: ComplexityMode) => {
+    setDefaultComplexity(mode);
+    setSavingComplexity(true);
+    setComplexitySaved(false);
+
+    try {
+      await fetch('/api/settings/complexity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ defaultComplexityMode: mode }),
+      });
+      setComplexitySaved(true);
+      setTimeout(() => setComplexitySaved(false), 2000);
+    } catch {
+      // Silently handle — UI already reflects the selection
+    } finally {
+      setSavingComplexity(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-12">
@@ -49,6 +81,7 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-2xl px-4 py-12">
       <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
 
+      {/* Subscription Section */}
       <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900">Subscription</h2>
 
@@ -90,6 +123,45 @@ export default function SettingsPage() {
             View Plans
           </a>
         </div>
+      </div>
+
+      {/* Default Complexity Mode Section */}
+      <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900">Default Complexity Mode</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          This sets your preferred complexity level for new recipe generations. You can still override it per recipe.
+        </p>
+
+        <div className="mt-4 space-y-3">
+          {COMPLEXITY_MODE_OPTIONS.map((option) => (
+            <label
+              key={option.value}
+              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+                defaultComplexity === option.value
+                  ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950'
+                  : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'
+              }`}
+            >
+              <input
+                type="radio"
+                name="complexity-mode"
+                value={option.value}
+                checked={defaultComplexity === option.value}
+                onChange={() => handleComplexityChange(option.value)}
+                disabled={savingComplexity}
+                className="mt-0.5"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-900">{option.label}</span>
+                <p className="mt-0.5 text-xs text-gray-500">{option.description}</p>
+              </div>
+            </label>
+          ))}
+        </div>
+
+        {complexitySaved && (
+          <p className="mt-3 text-xs text-green-600">Default complexity mode saved ✓</p>
+        )}
       </div>
     </div>
   );
