@@ -124,11 +124,11 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Include: all 4 layer texts, fingerprint id/name/version, chef brain version, token counts per layer, total input/output tokens, estimated cost, assembled timestamp
     - _Requirements: 3.2, 5.16, 8.1_
 
-- [ ] 4. Checkpoint — Core data model and prompt architecture
+- [x] 4. Checkpoint — Core data model and prompt architecture
   - Ensure all type definitions, Zod schemas, prompt modules, and AI provider compile. Validate Zod round-trip with a sample Recipe object. Ask the user if questions arise.
 
-- [ ] 5. Authentication & Billing (Backend + Frontend)
-  - [ ] 5.1 Implement Supabase Auth integration (register, login, logout, session)
+- [x] 5. Authentication & Billing (Backend + Frontend)
+  - [x] 5.1 Implement Supabase Auth integration (register, login, logout, session)
     - Create `/lib/auth-service.ts` implementing `register()`, `login()`, `logout()`, `getCurrentUser()` using Supabase Auth
     - On registration: create user row in `users` table with `tier: 'free'`, `generation_count_this_month: 0`, `default_complexity_mode: 'kitchen'`
     - On login: establish session, redirect to `/canvas`
@@ -136,13 +136,13 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - On logout: terminate session, redirect to `/login`
     - _Requirements: 7.1, 7.2, 7.4, 7.5, 7.6_
 
-  - [ ] 5.2 Build Auth UI (login page, signup page, protected route middleware)
+  - [x] 5.2 Build Auth UI (login page, signup page, protected route middleware)
     - Create `/app/(auth)/login/page.tsx` with email/password form, error display, link to signup
     - Create `/app/(auth)/signup/page.tsx` with email/password form, error display, link to login
     - Create Next.js middleware (`middleware.ts`) to protect `/(studio)` routes — redirect unauthenticated users to `/login`
     - _Requirements: 7.4, 7.7_
 
-  - [ ] 5.3 Implement Stripe billing integration (checkout, webhooks, tier management)
+  - [x] 5.3 Implement Stripe billing integration (checkout, webhooks, tier management)
     - Create `/lib/billing-service.ts` implementing `createCheckoutSession()`, `getUserBillingInfo()` with Stripe Customer Portal link
     - Define `PLANS` constant with 4 tiers and Stripe price IDs
     - Create `/app/api/webhooks/stripe/route.ts` handling: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
@@ -152,13 +152,13 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Webhook handlers must be idempotent (duplicate events safely ignored)
     - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7, 13.8_
 
-  - [ ] 5.4 Build Billing UI (pricing page, account settings, Stripe portal link)
+  - [x] 5.4 Build Billing UI (pricing page, account settings, Stripe portal link)
     - Create `/app/(studio)/pricing/page.tsx` with 4 tier cards (Free, Home Cook, Creator, Brigade) showing features and prices
     - Each paid tier card has a "Subscribe" button that calls `createCheckoutSession()` and redirects to Stripe
     - Create `/app/(studio)/settings/page.tsx` showing current tier, next billing date, and link to Stripe Customer Portal
     - _Requirements: 13.2, 13.7_
 
-  - [ ] 5.5 Implement Rate Limiter (generation counting, tier enforcement, token caps)
+  - [x] 5.5 Implement Rate Limiter (generation counting, tier enforcement, token caps)
     - Create `/lib/rate-limiter.ts` implementing `checkRateLimit()`, `recordGenerationCost()`
     - `GENERATION_LIMITS`: free = 10/month, paid = unlimited
     - `MAX_INPUT_TOKENS` = 1200, `MAX_OUTPUT_TOKENS` = 2000
@@ -167,7 +167,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Reset count on first of each month (check `generation_count_reset_date`)
     - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
 
-  - [ ] 5.6 Implement Resend email integration (welcome, payment failure, grace period)
+  - [x] 5.6 Implement Resend email integration (welcome, payment failure, grace period)
     - Create `/lib/email-service.ts` with Resend client
     - Implement `sendWelcomeEmail(email, name)`, `sendPaymentFailedEmail(email, portalUrl)`, `sendGracePeriodReminderEmail(email, daysRemaining, portalUrl)`
     - Use Canadian English in all email copy
