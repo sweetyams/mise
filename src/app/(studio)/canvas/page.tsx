@@ -175,7 +175,12 @@ export default function CanvasPage() {
 
       // Try to parse the streamed text as a Recipe
       try {
-        const parsed = JSON.parse(accumulated);
+        // Strip markdown code fences if Claude wrapped the JSON
+        let jsonStr = accumulated.trim();
+        if (jsonStr.startsWith('```')) {
+          jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+        }
+        const parsed = JSON.parse(jsonStr);
         const result = RecipeSchema.safeParse(parsed);
         if (result.success) {
           setParsedRecipe(result.data as Recipe);

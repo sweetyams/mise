@@ -98,7 +98,13 @@ export async function POST(request: NextRequest) {
 
         // Post-stream: try to validate and persist
         try {
-          const parsed = JSON.parse(fullResponse);
+          // Strip markdown code fences if Claude wrapped the JSON
+          let jsonStr = fullResponse.trim();
+          if (jsonStr.startsWith('```')) {
+            jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+          }
+
+          const parsed = JSON.parse(jsonStr);
           const result = RecipeSchema.safeParse(parsed);
           if (result.success) {
             const recipe = result.data as Recipe;
