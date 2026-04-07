@@ -20,3 +20,9 @@ Thumbs.db
 
 # Vercel
 .vercel/
+
+# Supabase local
+supabase/.temp/
+
+# Test coverage
+coverage/
