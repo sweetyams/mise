@@ -11,6 +11,9 @@
 import { useState, useRef, useCallback } from 'react';
 import { suggestPairings } from './actions';
 import type { PairingSuggestion } from '@/lib/ai-provider/types';
+import DisplayModeSwitcher from '@/components/display-mode-switcher';
+import { RecipeSchema } from '@/lib/zod-schemas';
+import type { Recipe } from '@/lib/types/recipe';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -59,6 +62,7 @@ export default function CanvasPage() {
   const [streamedText, setStreamedText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [parsedRecipe, setParsedRecipe] = useState<Recipe | null>(null);
 
   // Pairing state
   const [pairingIngredient, setPairingIngredient] = useState('');
@@ -100,6 +104,7 @@ export default function CanvasPage() {
     setStreamedText('');
     setError(null);
     setIsComplete(false);
+    setParsedRecipe(null);
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -164,6 +169,17 @@ export default function CanvasPage() {
       }
 
       setIsComplete(true);
+
+      // Try to parse the streamed text as a Recipe
+      try {
+        const parsed = JSON.parse(accumulated);
+        const result = RecipeSchema.safeParse(parsed);
+        if (result.success) {
+          setParsedRecipe(result.data as Recipe);
+        }
+      } catch {
+        // Not valid JSON — display as text (the display renderers won't work)
+      }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         // User cancelled
@@ -455,7 +471,7 @@ export default function CanvasPage() {
         {/* Streamed Recipe Display */}
         {streamedText && (
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <div className="mb-3 flex items-centre justify-between">
+            <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-semibold">
                 {isComplete ? 'Your Recipe' : 'Generating…'}
               </h2>
@@ -463,9 +479,15 @@ export default function CanvasPage() {
                 <div className="h-3 w-3 animate-pulse rounded-full bg-green-500" />
               )}
             </div>
-            <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-relaxed text-gray-700 dark:text-gray-300">
-              {streamedText}
-            </pre>
+            {isComplete && parsedRecipe ? (
+              <DisplayModeSwitcher recipe={parsedRecipe} />
+            ) : (
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <pre className="whitespace-pre-wrap break-words rounded-md bg-gray-50 p-4 font-mono text-xs leading-relaxed text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                  {streamedText}
+                </pre>
+              </div>
+            )}
           </div>
         )}
       </div>

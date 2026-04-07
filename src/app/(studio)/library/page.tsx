@@ -37,13 +37,10 @@ export default function LibraryPage() {
     setLoading(true);
     setError(null);
 
-    // TODO: get userId from auth session — placeholder for now
-    const userId = '';
-
     try {
       const result = searchQuery.trim()
-        ? await searchRecipes(userId, searchQuery)
-        : await getRecipes(userId);
+        ? await searchRecipes(undefined, searchQuery)
+        : await getRecipes();
 
       if (result.success) {
         setRecipes(result.data);

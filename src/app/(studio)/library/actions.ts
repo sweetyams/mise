@@ -109,14 +109,24 @@ export async function saveRecipe(
 // ---------------------------------------------------------------------------
 
 export async function getRecipes(
-  userId: string
+  userId?: string
 ): Promise<ActionResult<RecipeRow[]>> {
   const supabase = await createClient();
+
+  // Get userId from session if not provided
+  let uid = userId;
+  if (!uid) {
+    const { data: { user } } = await supabase.auth.getUser();
+    uid = user?.id;
+  }
+  if (!uid) {
+    return { success: false, error: 'You must be signed in to view your library.' };
+  }
 
   const { data, error } = await supabase
     .from('recipes')
     .select('*')
-    .eq('user_id', userId)
+    .eq('user_id', uid)
     .order('updated_at', { ascending: false });
 
   if (error) {
@@ -174,23 +184,32 @@ export async function deleteRecipe(
 // ---------------------------------------------------------------------------
 
 export async function searchRecipes(
-  userId: string,
+  userId: string | undefined,
   query: string
 ): Promise<ActionResult<RecipeRow[]>> {
   const supabase = await createClient();
   const q = query.trim().toLowerCase();
 
-  if (!q) {
-    return getRecipes(userId);
+  // Get userId from session if not provided
+  let uid = userId;
+  if (!uid) {
+    const { data: { user } } = await supabase.auth.getUser();
+    uid = user?.id;
+  }
+  if (!uid) {
+    return { success: false, error: 'You must be signed in.' };
   }
 
-  // Use ilike for case-insensitive title search (leverages trigram index)
-  // Also search within components JSONB for ingredient names and tags
+  if (!q) {
+    return getRecipes(uid);
+  }
+
+  // Use ilike for case-insensitive title search
   const { data, error } = await supabase
     .from('recipes')
     .select('*')
-    .eq('user_id', userId)
-    .or(`title.ilike.%${q}%,components.cs.${JSON.stringify([{ ingredients: [{ name: q }] }])},tags.cs.${JSON.stringify([q])}`)
+    .eq('user_id', uid)
+    .ilike('title', `%${q}%`)
     .order('updated_at', { ascending: false });
 
   if (error) {

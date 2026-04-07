@@ -153,14 +153,23 @@ export async function updateFermentationLog(
 // ---------------------------------------------------------------------------
 
 export async function getFermentationLogs(
-  userId: string
+  userId?: string
 ): Promise<ActionResult<FermentationLog[]>> {
   const supabase = await createClient();
+
+  let uid = userId;
+  if (!uid) {
+    const { data: { user } } = await supabase.auth.getUser();
+    uid = user?.id;
+  }
+  if (!uid) {
+    return { success: false, error: 'You must be signed in.' };
+  }
 
   const { data, error } = await supabase
     .from('fermentation_logs')
     .select('*')
-    .eq('user_id', userId)
+    .eq('user_id', uid)
     .order('created_at', { ascending: false });
 
   if (error) {
