@@ -77,15 +77,15 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - On all retries exhausted: return descriptive error for user display with manual retry option
     - _Requirements: 5.11, 5.12, 5.13, 5.14_
 
-- [ ] 3. Core Prompt Architecture (Backend)
-  - [ ] 3.1 Implement System Core prompt layer with in-memory loading
+- [x] 3. Core Prompt Architecture (Backend)
+  - [x] 3.1 Implement System Core prompt layer with in-memory loading
     - Create `/lib/system-core.ts` with the System Core prompt text (~150 tokens) encoding MISE's culinary philosophy: weights in grams/ml, Celsius, technique reasons, seasoning at every stage, acid moment/fat decision/textural contrast, structured JSON output rules, component-based recipe structure
     - Load System Core into a module-level constant at import time (in-memory, never expires)
     - Export `getSystemCore(): PromptLayer` function
     - Add startup verification that System Core is loaded before accepting requests
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 6.1_
 
-  - [ ] 3.2 Implement Fingerprint cache with in-memory 1hr TTL and CRUD for operator
+  - [x] 3.2 Implement Fingerprint cache with in-memory 1hr TTL and CRUD for operator
     - Create `/lib/fingerprint-cache.ts` implementing `CachedFingerprint` interface
     - Implement `getFingerprint(id)`, `invalidateFingerprint(id)`, `preloadFingerprints()` with 1-hour TTL
     - On cache miss, fall back to Supabase `fingerprints` table
@@ -93,7 +93,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - On update, invalidate the in-memory cache entry for that fingerprint
     - _Requirements: 2.1, 2.2, 2.6, 2.7, 3.1, 3.3, 6.2, 6.3_
 
-  - [ ] 3.3 Implement AI Provider interface and Claude Provider
+  - [x] 3.3 Implement AI Provider interface and Claude Provider
     - Create `/lib/ai-provider/types.ts` with `AIProvider`, `AIProviderInfo`, `AIProviderError` interfaces
     - Create `/lib/ai-provider/claude-provider.ts` implementing `AIProvider` for Anthropic API (Sonnet for generation, Haiku for brain compilation)
     - Implement `generateRecipe()` with streaming, `compileBrain()`, `suggestPairings()`, `suggestSubstitutions()`
@@ -102,7 +102,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Create `/lib/ai-provider/registry.ts` with provider registry
     - _Requirements: 5.19, 12.1, 12.2, 12.3, 12.4_
 
-  - [ ] 3.4 Implement Brain Compiler with Redis caching (15min TTL)
+  - [x] 3.4 Implement Brain Compiler with Redis caching (15min TTL)
     - Create `/lib/brain-compiler.ts` implementing `BrainCompilationInput`, `CompiledBrain` interfaces
     - Implement `compileBrain(input)`: fetch raw data (onboarding, dev logs, tasting notes) from Supabase, build compilation prompt, call Haiku via AI Provider, upsert to `chef_brains` table with version increment, invalidate Redis cache
     - Implement `getCachedBrain(userId)`: check Redis first (15min TTL), fall back to Supabase
@@ -110,7 +110,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Handle compilation errors: retain existing brain on failure, log error
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.7, 4.8, 4.9, 6.4, 6.5_
 
-  - [ ] 3.5 Implement Prompt Assembler with parallel fetch and streaming
+  - [x] 3.5 Implement Prompt Assembler with parallel fetch and streaming
     - Create `/lib/prompt-assembler.ts` implementing `AssembledPrompt`, `PromptSnapshot` interfaces
     - Implement `assemblePrompt(userId, fingerprintId, requestContext, complexityMode)`: fetch System Core (memory), Fingerprint (memory cache), Chef Brain (Redis) in parallel using `Promise.all`
     - Join layers 1-3 as system prompt, layer 4 (Request Context built from UI state) as user message
@@ -119,7 +119,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Implement `buildPromptSnapshot()`: capture all 4 layer texts, versions, token counts, fingerprint id/name, estimated cost
     - _Requirements: 5.1, 5.2, 5.3, 5.15, 5.16, 6.6, 20.2, 20.3, 20.4_
 
-  - [ ] 3.6 Implement Prompt Snapshot storage
+  - [x] 3.6 Implement Prompt Snapshot storage
     - When a recipe is generated, persist the `PromptSnapshot` as JSONB in `recipes.prompt_used`
     - Include: all 4 layer texts, fingerprint id/name/version, chef brain version, token counts per layer, total input/output tokens, estimated cost, assembled timestamp
     - _Requirements: 3.2, 5.16, 8.1_
