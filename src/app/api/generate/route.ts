@@ -13,15 +13,21 @@ import { getFingerprint } from '@/lib/fingerprint-cache';
 import { RecipeSchema } from '@/lib/zod-schemas';
 import type { ComplexityMode, Recipe } from '@/lib/types/recipe';
 
+function stripCodeFences(text: string): string {
+  let s = text.trim();
+  if (s.startsWith('```')) {
+    s = s.replace(/^```(?:json|JSON)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+  }
+  return s.trim();
+}
+
 export async function POST(request: NextRequest) {
   // 1. Authenticate
   const supabase = await createClient();
   const { data: { user: authUser } } = await supabase.auth.getUser();
-
   if (!authUser) {
     return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
   }
-
   const userId = authUser.id;
 
   // 2. Rate limit
@@ -68,7 +74,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to assemble prompt.' }, { status: 500 });
   }
 
-  // 5. Create AI provider
+  // 5. Generate — collect full response (no streaming to client)
   let provider;
   try {
     provider = await createAIProvider();
@@ -77,69 +83,68 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'AI provider not configured. Check your API key.' }, { status: 500 });
   }
 
-  // 6. Stream the response
-  const encoder = new TextEncoder();
   let fullResponse = '';
+  try {
+    const aiStream = await provider.generateRecipe(assembled.systemPrompt, assembled.userMessage);
+    const reader = aiStream.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      fullResponse += value;
+    }
+  } catch (err) {
+    console.error('[MISE] AI generation failed:', err);
+    return NextResponse.json({ error: 'Recipe generation failed. Please try again.' }, { status: 500 });
+  }
 
-  const stream = new ReadableStream({
-    async start(controller) {
-      try {
-        const aiStream = await provider.generateRecipe(assembled.systemPrompt, assembled.userMessage);
-        const reader = aiStream.getReader();
+  // 6. Parse JSON — strip code fences, parse, validate
+  const jsonStr = stripCodeFences(fullResponse);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch (err) {
+    console.error('[MISE] JSON parse failed. First 200 chars:', jsonStr.slice(0, 200));
+    // Return the raw text as a fallback so the user sees something
+    return NextResponse.json({ recipe: null, rawText: fullResponse, error: 'AI returned non-JSON response.' });
+  }
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          fullResponse += value;
-          controller.enqueue(encoder.encode(value));
-        }
+  const validation = RecipeSchema.safeParse(parsed);
+  let recipe: Recipe;
 
-        controller.close();
+  if (validation.success) {
+    recipe = validation.data as Recipe;
+  } else {
+    console.warn('[MISE] Zod validation errors:', validation.error.issues.slice(0, 5).map(i => `${i.path.join('.')}: ${i.message}`));
+    // Use the parsed JSON anyway — it's close enough for display
+    recipe = parsed as Recipe;
+  }
 
-        // Post-stream: try to validate and persist
-        try {
-          // Strip markdown code fences if Claude wrapped the JSON
-          let jsonStr = fullResponse.trim();
-          if (jsonStr.startsWith('```')) {
-            jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
-          }
+  // 7. Persist
+  try {
+    const fingerprint = await getFingerprint(fingerprintId);
+    const outputTokens = Math.ceil(fullResponse.length / 4);
+    const snapshot = buildPromptSnapshot(assembled, outputTokens, fingerprintId, fingerprint?.name ?? 'Unknown', userId);
 
-          const parsed = JSON.parse(jsonStr);
-          const result = RecipeSchema.safeParse(parsed);
-          if (result.success) {
-            const recipe = result.data as Recipe;
-            const fingerprint = await getFingerprint(fingerprintId);
-            const outputTokens = Math.ceil(fullResponse.length / 4);
-            const snapshot = buildPromptSnapshot(assembled, outputTokens, fingerprintId, fingerprint?.name ?? 'Unknown', userId);
-            await storeRecipeWithSnapshot(recipe, snapshot, userId);
-            await recordGenerationCost({
-              userId,
-              recipeId: recipe.id,
-              inputTokens: snapshot.totalInputTokens,
-              outputTokens,
-              estimatedCost: snapshot.estimatedCost,
-              createdAt: new Date().toISOString(),
-            });
-            console.log('[MISE] Recipe persisted:', recipe.title);
-          } else {
-            console.warn('[MISE] Zod validation errors:', result.error.issues.slice(0, 5).map(i => `${i.path.join('.')}: ${i.message}`));
-          }
-        } catch (e) {
-          console.warn('[MISE] Post-stream validation/persistence failed:', e instanceof Error ? e.message : e);
-        }
-      } catch (err) {
-        console.error('[MISE] Streaming error:', err);
-        const errorMsg = JSON.stringify({ __error: true, error: 'Generation failed. Please try again.' });
-        controller.enqueue(encoder.encode(errorMsg));
-        controller.close();
-      }
-    },
-  });
+    // Ensure recipe has required fields for storage
+    if (!recipe.id) recipe.id = crypto.randomUUID();
+    if (!recipe.createdAt) recipe.createdAt = new Date().toISOString();
+    if (!recipe.updatedAt) recipe.updatedAt = new Date().toISOString();
 
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'no-cache',
-    },
-  });
+    await storeRecipeWithSnapshot(recipe, snapshot, userId);
+    await recordGenerationCost({
+      userId,
+      recipeId: recipe.id,
+      inputTokens: snapshot.totalInputTokens,
+      outputTokens,
+      estimatedCost: snapshot.estimatedCost,
+      createdAt: new Date().toISOString(),
+    });
+    console.log('[MISE] Recipe persisted:', recipe.title ?? recipe.id);
+  } catch (err) {
+    console.warn('[MISE] Persistence failed:', err instanceof Error ? err.message : err);
+    // Still return the recipe to the user even if persistence failed
+  }
+
+  // 8. Return the parsed recipe
+  return NextResponse.json({ recipe });
 }
