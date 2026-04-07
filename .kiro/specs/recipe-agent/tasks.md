@@ -6,8 +6,8 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
 
 ## Tasks
 
-- [ ] 1. Project Foundation & Infrastructure
-  - [ ] 1.1 Initialize Next.js 14 project with App Router, TypeScript, Tailwind CSS, and ESLint
+- [x] 1. Project Foundation & Infrastructure
+  - [x] 1.1 Initialize Next.js 14 project with App Router, TypeScript, Tailwind CSS, and ESLint
     - Create the project with `create-next-app` using App Router
     - Set up folder structure:
       ```
@@ -24,7 +24,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Create `.env.local.example` with all required env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `AI_PROVIDER` (default: `claude`)
     - _Requirements: 17.1, 17.6_
 
-  - [ ] 1.2 Create Supabase database schema with all V1 tables, indexes, and RLS policies
+  - [x] 1.2 Create Supabase database schema with all V1 tables, indexes, and RLS policies
     - Create SQL migration file with all V1 tables:
       - `users` (id, email, tier, stripe_customer_id, default_complexity_mode, generation_count_this_month, generation_count_reset_date, pantry_constants JSONB, created_at, updated_at)
       - `fingerprints` (id, name, prompt_text, full_profile JSONB, version, is_default, created_at, updated_at)
@@ -41,14 +41,14 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Create RLS policies: users read/write own rows for `recipes`, `chef_brains`, `recipe_versions`, `fermentation_logs`, `tasting_notes`, `generation_costs`; `fingerprints` readable by all authenticated, writable by service role only; `ai_provider_config` readable/writable by service role only
     - _Requirements: 2.6, 4.4, 8.1, 9.1, 9.8, 16.1, 17.2_
 
-  - [ ] 1.3 Set up Supabase client utilities and Upstash Redis client
+  - [x] 1.3 Set up Supabase client utilities and Upstash Redis client
     - Create `/lib/supabase/server.ts` for server-side Supabase client (using `@supabase/ssr`)
     - Create `/lib/supabase/client.ts` for browser-side Supabase client
     - Create `/lib/redis.ts` for Upstash Redis client initialization
     - _Requirements: 17.2, 17.4_
 
-- [ ] 2. Core Data Model & Validation
-  - [ ] 2.1 Define TypeScript interfaces for the full Recipe data model
+- [x] 2. Core Data Model & Validation
+  - [x] 2.1 Define TypeScript interfaces for the full Recipe data model
     - Create `/lib/types/recipe.ts` with all interfaces matching the design: `Recipe`, `Component`, `Ingredient`, `Substitution`, `Step`, `TasteProfile`, `AcidNote`, `FatNote`, `HeatNote`, `SweetNote`, `TextureContrast`, `Variation`, `ScaleNote`, `TimelineStage`
     - Include `intent` interface (occasion, mood, season[], time, effort)
     - Include `flavour` interface (profile[], dominant, acid[], fat[], heat, sweet, texture[], balance)
@@ -60,7 +60,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Define `PromptLayer`, `AssembledPrompt`, `PromptSnapshot` interfaces
     - _Requirements: 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10_
 
-  - [ ] 2.2 Implement Zod schema for Recipe validation
+  - [x] 2.2 Implement Zod schema for Recipe validation
     - Create `/lib/zod-schemas.ts` with complete `RecipeSchema` matching the `Recipe` interface
     - Include nested schemas: `ComponentSchema`, `IngredientSchema`, `SubstitutionSchema`, `StepSchema`, `TasteProfileSchema`, `IntentSchema`, `FlavourSchema`, `ThinkingSchema`, `RelatedSchema`, `VariationsSchema`
     - Enforce: title non-empty, components non-empty array, each component has ingredients[], steps[], doneness_cues[]
@@ -69,7 +69,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Implement `validateRecipe(data): { valid: boolean; errors: string[] }`
     - _Requirements: 5.4, 5.6, 5.11, 5.12_
 
-  - [ ] 2.3 Implement Zod validation with retry logic
+  - [x] 2.3 Implement Zod validation with retry logic
     - Create `/lib/zod-validation.ts` with structured generation validation
     - Implement `generateStructuredRecipe()`: call AI, parse JSON, validate against Zod schema
     - On validation failure: build correction prompt including Zod error messages, retry up to 2 times
