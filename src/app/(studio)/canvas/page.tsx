@@ -71,10 +71,13 @@ export default function CanvasPage() {
 
       const data = await res.json();
 
-      if (data.recipe) {
+      if (data.recipe && typeof data.recipe === 'object' && data.recipe.title) {
         setRecipe(data.recipe as Recipe);
       } else if (data.rawText) {
         setRawText(data.rawText);
+      } else if (data.recipe) {
+        // Recipe came back but might not have expected shape — try to display anyway
+        setRecipe(data.recipe as Recipe);
       } else {
         setError('No recipe returned.');
       }

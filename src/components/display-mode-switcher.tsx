@@ -176,9 +176,9 @@ export default function DisplayModeSwitcher({
         {mode === 'shopping' && shoppingData ? (
           <ShoppingListDisplay data={shoppingData} />
         ) : (
-          <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-relaxed text-gray-700 dark:text-gray-300">
+          <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-700 dark:text-gray-300">
             {renderedContent}
-          </pre>
+          </div>
         )}
       </div>
     </div>

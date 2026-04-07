@@ -212,9 +212,9 @@ describe('ComponentSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects component with empty doneness_cues', () => {
+  it('accepts component with empty doneness_cues (optional)', () => {
     const result = ComponentSchema.safeParse(makeComponent({ doneness_cues: [] }));
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 });
 
