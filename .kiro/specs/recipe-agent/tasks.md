@@ -173,11 +173,11 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Use Canadian English in all email copy
     - _Requirements: 18.1, 18.2, 18.3_
 
-- [ ] 6. Checkpoint — Auth & billing
+- [x] 6. Checkpoint — Auth & billing
   - Ensure auth flow works end-to-end (register → login → protected routes → logout), Stripe webhook handlers compile, rate limiter logic is correct. Ask the user if questions arise.
 
-- [ ] 7. Recipe Generation (Backend + Frontend)
-  - [ ] 7.1 Implement Generation API route with streaming, Zod validation, and retry logic
+- [x] 7. Recipe Generation (Backend + Frontend)
+  - [x] 7.1 Implement Generation API route with streaming, Zod validation, and retry logic
     - Create `/app/api/generate/route.ts` as a POST streaming route
     - Flow: authenticate user → `checkRateLimit()` → `assemblePrompt()` (with complexity mode) → stream via AI Provider → validate JSON against Zod schema (retry up to 2x on failure) → persist recipe (structured JSON, never markdown) + prompt snapshot → `recordGenerationCost()` → increment generation count
     - Return streamed response using `ReadableStream` and `TransformStream`
@@ -186,7 +186,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - On Zod validation failure after all retries: return descriptive error with manual retry option
     - _Requirements: 5.1, 5.2, 5.3, 5.11, 5.12, 5.13, 5.14, 5.15, 5.16, 5.19, 5.20, 14.1, 14.2_
 
-  - [ ] 7.2 Build Generation UI (canvas page with prompt input, fingerprint selector, complexity mode selector, serving size, streaming display)
+  - [x] 7.2 Build Generation UI (canvas page with prompt input, fingerprint selector, complexity mode selector, serving size, streaming display)
     - Create `/app/(studio)/canvas/page.tsx` as the main generation interface
     - Prompt input textarea for describing the dish idea (builds Request Context / Layer 4)
     - Fingerprint selector dropdown showing available fingerprints (1 for free tier, all 5 for paid)
@@ -199,7 +199,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Error display with retry button on failure
     - _Requirements: 2.3, 2.4, 2.5, 5.17, 5.20, 5.21, 20.5, 20.8_
 
-  - [ ] 7.3 Implement Batch Scaler (component-based scaling, kitchen precision rounding)
+  - [x] 7.3 Implement Batch Scaler (component-based scaling, kitchen precision rounding)
     - Create `/lib/batch-scaler.ts` implementing `ScaledRecipe` interface
     - Implement `scaleRecipe(recipe, targetServings): ScaledRecipe` — scales every component's ingredients proportionally
     - Implement `scaleComponent(component, multiplier): Component` — scales ingredient amounts, preserves all component metadata (name, role, steps, doneness_cues)
