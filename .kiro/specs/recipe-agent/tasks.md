@@ -255,8 +255,8 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Per-recipe override: changing mode on a recipe doesn't change the user default
     - _Requirements: 20.5, 20.6, 20.7, 20.8_
 
-- [ ] 11. Recipe Library & Versioning (Backend + Frontend)
-  - [ ] 11.1 Implement Recipe CRUD server actions (save, read, update, delete, search, tag)
+- [x] 11. Recipe Library & Versioning (Backend + Frontend)
+  - [x] 11.1 Implement Recipe CRUD server actions (save, read, update, delete, search, tag)
     - Create `/app/(studio)/library/actions.ts` with server actions
     - `saveRecipe()`: auto-persist on generation with unique id, timestamp, fingerprint id/version, prompt snapshot, `cooked: false`, user id, complexity_mode, all JSONB fields (intent, flavour, components, timeline, variations, related, thinking)
     - `getRecipes(userId)`: return all recipes sorted by `updated_at DESC`
@@ -270,7 +270,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - On DB write failure: return error, UI retains unsaved data for retry
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 8.10_
 
-  - [ ] 11.2 Build Recipe Library UI (list view, search, tag filtering, sort by modified)
+  - [x] 11.2 Build Recipe Library UI (list view, search, tag filtering, sort by modified)
     - Create `/app/(studio)/library/page.tsx` showing all saved recipes
     - Default sort: most recently modified
     - Search bar filtering by title, ingredient (within components), or tag
@@ -278,7 +278,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Each recipe card shows: title, fingerprint used, complexity mode, cooked status, tags, last modified date
     - _Requirements: 8.2, 8.3, 8.4_
 
-  - [ ] 11.3 Implement Version Store with dial_direction support
+  - [x] 11.3 Implement Version Store with dial_direction support
     - Create `/lib/version-store.ts` implementing `createVersion()`, `getVersionHistory()`, `diffVersions()`, `revertToVersion()`
     - `createVersion()`: insert into `recipe_versions` with sequential `version_number`, full `recipe_data` JSONB (complete Recipe JSON), `prompt_snapshot` JSONB, `dial_direction` (null for original, else the direction used)
     - `getVersionHistory()`: return chronological list with timestamps, fingerprint used, chef brain version, dial_direction for each version
@@ -287,7 +287,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Retain all versions indefinitely for paid-tier users
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-  - [ ] 11.4 Implement The Dial (recipe evolution backend)
+  - [x] 11.4 Implement The Dial (recipe evolution backend)
     - Create `/lib/dial.ts` implementing `dialRecipe()` and `getDialHistory()`
     - `dialRecipe(recipeId, direction, userId)`: fetch current recipe JSON → assemble prompt with current recipe + dial direction + full 4-layer prompt → call AI Provider → validate with Zod → create new version with `dial_direction` set → return `DialResult` with new version, human-readable changes summary, and previous version ID
     - `getDialHistory(recipeId)`: return all versions with their dial directions (null for original)
@@ -295,7 +295,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Users can dial from any version in history, not only the latest
     - _Requirements: 9.6, 9.7, 9.8, 9.10, 9.11_
 
-  - [ ] 11.5 Build Recipe Detail Page (view, edit, dev notes, cooked toggle, version history, display modes, The Dial)
+  - [x] 11.5 Build Recipe Detail Page (view, edit, dev notes, cooked toggle, version history, display modes, The Dial)
     - Create `/app/(studio)/library/[id]/page.tsx` showing full recipe
     - Display: title, intent, flavour architecture, all components with ingredients/steps/doneness cues, thinking section, variations, related
     - Display mode switcher (7 modes) integrated into the page
@@ -306,7 +306,7 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Side-by-side version comparison
     - _Requirements: 8.5, 8.6, 8.7, 9.2, 9.3, 9.4, 9.9_
 
-  - [ ] 11.6 Build The Dial UI
+  - [x] 11.6 Build The Dial UI
     - Add Dial UI to recipe detail page with direction buttons: More Acid, Smokier, More Umami, More Heat, Lighter, Funkier, Different Region, Riff Mode
     - Each push calls `dialRecipe()` API, shows loading state, displays new version on completion
     - Dial history visible on the recipe showing sequence of directions and versions
