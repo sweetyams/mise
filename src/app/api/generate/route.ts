@@ -114,10 +114,12 @@ export async function POST(request: NextRequest) {
               estimatedCost: snapshot.estimatedCost,
               createdAt: new Date().toISOString(),
             });
+            console.log('[MISE] Recipe persisted:', recipe.title);
+          } else {
+            console.warn('[MISE] Zod validation errors:', result.error.issues.slice(0, 5).map(i => `${i.path.join('.')}: ${i.message}`));
           }
-        } catch {
-          // Validation/persistence failed — recipe was still streamed to client
-          console.warn('[MISE] Post-stream validation/persistence failed');
+        } catch (e) {
+          console.warn('[MISE] Post-stream validation/persistence failed:', e instanceof Error ? e.message : e);
         }
       } catch (err) {
         console.error('[MISE] Streaming error:', err);
