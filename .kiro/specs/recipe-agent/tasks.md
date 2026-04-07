@@ -313,40 +313,40 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Allow dialing from any version (not just latest) — version selector before dial push
     - _Requirements: 9.6, 9.7, 9.8, 9.9, 9.10, 9.11_
 
-- [ ] 12. Checkpoint — Display modes, complexity, library, versioning, The Dial
+- [x] 12. Checkpoint — Display modes, complexity, library, versioning, The Dial
   - Ensure all 7 display renderers produce correct output, complexity modes affect generation, recipe CRUD works, versioning with dial_direction tracks correctly, The Dial generates new versions. Ask the user if questions arise.
 
-- [ ] 13. AI Features (Backend + Frontend)
-  - [ ] 13.1 Implement Ingredient Pairing suggestions
+- [x] 13. AI Features (Backend + Frontend)
+  - [x] 13.1 Implement Ingredient Pairing suggestions
     - Add `suggestPairings(ingredient, systemPrompt)` to AI Provider — returns complementary ingredients with explanations using the active fingerprint's style
     - Create server action for pairing requests
     - _Requirements: 15.1_
 
-  - [ ] 13.2 Implement Ingredient Substitution
+  - [x] 13.2 Implement Ingredient Substitution
     - Add `suggestSubstitutions(ingredient, recipeContext, systemPrompt)` to AI Provider — returns alternatives with quantity adjustments and flavour impact notes
     - When user marks ingredients as unavailable, highlight them and offer substitution suggestions
     - _Requirements: 15.2, 15.3_
 
-  - [ ] 13.3 Build Pairing/Substitution UI
+  - [x] 13.3 Build Pairing/Substitution UI
     - Add ingredient pairing button on the canvas page — user enters an ingredient, sees complementary suggestions
     - Add substitution UI on recipe detail page — user can mark ingredients unavailable within any component and see alternatives inline
     - _Requirements: 15.1, 15.2, 15.3_
 
-- [ ] 14. Fermentation Tracking (Backend + Frontend)
-  - [ ] 14.1 Implement Fermentation Log CRUD
+- [x] 14. Fermentation Tracking (Backend + Frontend)
+  - [x] 14.1 Implement Fermentation Log CRUD
     - Create server actions for fermentation logs: `createFermentationLog()`, `updateFermentationLog()`, `getFermentationLogs(userId)`, `getActiveFermentationLogs(userId)`
     - Fields: recipe_id, user_id, start_date, target_duration_days, temperature, method_description, status (active/completed/failed)
     - Calculate elapsed time since start_date
     - Detect overdue: elapsed days > target_duration_days
     - _Requirements: 16.1, 16.2, 16.5_
 
-  - [ ] 14.2 Implement Tasting Notes for fermentation
+  - [x] 14.2 Implement Tasting Notes for fermentation
     - Create server action `addTastingNote(fermentationLogId, note)` — persists with timestamp
     - Tasting note fields: taste, texture, appearance, aroma, overall, comments
     - On tasting note added: trigger Chef Brain recompilation
     - _Requirements: 16.3, 4.2_
 
-  - [ ] 14.3 Build Fermentation UI (create, track, overdue notifications, safety guidelines)
+  - [x] 14.3 Build Fermentation UI (create, track, overdue notifications, safety guidelines)
     - Create `/app/(studio)/fermentation/page.tsx` listing active and completed fermentation logs
     - Create form for new fermentation log entry
     - Display elapsed time for active logs
@@ -354,8 +354,8 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Display safety guidelines alongside active fermentation entries
     - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5_
 
-- [ ] 15. Export (Backend + Frontend)
-  - [ ] 15.1 Implement PDF Export (basic V1 formatting)
+- [x] 15. Export (Backend + Frontend)
+  - [x] 15.1 Implement PDF Export (basic V1 formatting)
     - Create `/lib/export-service.ts` implementing `exportRecipeAsPdf()`
     - Generate a formatted, printable recipe card from structured Recipe JSON containing: title, all components with ingredients/steps, thinking section, serving size
     - Include active scaling (serving size) in exported output
@@ -363,42 +363,42 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Free-tier users: reject with upgrade message
     - _Requirements: 10.1, 10.3, 10.4, 10.5_
 
-  - [ ] 15.2 Implement Markdown Export
+  - [x] 15.2 Implement Markdown Export
     - Implement `exportRecipeAsMarkdown()` in `/lib/export-service.ts`
     - Generate well-structured Markdown with proper headings, lists, and formatting for component-based recipes
     - Include scaling and branding where applicable
     - _Requirements: 10.2, 10.3, 10.4_
 
-  - [ ] 15.3 Build Export UI (format selection, branding for Creator/Brigade)
+  - [x] 15.3 Build Export UI (format selection, branding for Creator/Brigade)
     - Add export button on recipe detail page with format dropdown (PDF / Markdown)
     - For Creator/Brigade: show branding input (name, business name) before export
     - For Free tier: show upgrade prompt
     - Download the generated file
     - _Requirements: 10.1, 10.2, 10.4, 10.5_
 
-- [ ] 16. Chef Brain UI (Frontend)
-  - [ ] 16.1 Build Chef Brain page
+- [x] 16. Chef Brain UI (Frontend)
+  - [x] 16.1 Build Chef Brain page
     - Create `/app/(studio)/brain/page.tsx` showing the user's compiled Chef Brain summary
     - Display: flavour biases, pantry constants, technique comfort, avoid list, cooking context, recent dev notes
     - "Recompile" button to manually trigger brain recompilation
     - Show last compilation timestamp and version
     - _Requirements: 4.6, 4.7_
 
-- [ ] 17. Admin Controls (Backend + Frontend)
-  - [ ] 17.1 Build Admin dashboard page (protected, operator-only)
+- [x] 17. Admin Controls (Backend + Frontend)
+  - [x] 17.1 Build Admin dashboard page (protected, operator-only)
     - Create `/app/(studio)/admin/page.tsx` with operator-only access check
     - Dashboard layout with navigation to: Fingerprint Management, AI Provider Config, Cost Monitoring, System Health
     - Protect with a server-side check (e.g., user email matches operator email env var or a role flag)
     - _Requirements: 2.7_
 
-  - [ ] 17.2 Build Fingerprint Management UI (view, edit prompt_text, version history)
+  - [x] 17.2 Build Fingerprint Management UI (view, edit prompt_text, version history)
     - Create `/app/(studio)/admin/fingerprints/page.tsx`
     - List all fingerprints with name, current version, last updated
     - Edit form for `prompt_text` — on save, version increments and cache invalidates
     - Show version history for each fingerprint
     - _Requirements: 2.7, 3.1, 3.3_
 
-  - [ ] 17.3 Implement AI Provider management (view providers, configure keys, switch active, test connection)
+  - [x] 17.3 Implement AI Provider management (view providers, configure keys, switch active, test connection)
     - Create `/app/(studio)/admin/providers/page.tsx`
     - List configured providers from `ai_provider_config` table
     - Form to add/edit provider: name, API key (encrypted), model ID, is_active toggle
@@ -406,19 +406,19 @@ V1 ships the core recipe generation engine with the 4-layer prompt architecture,
     - Only one provider can be `is_active = true` at a time
     - _Requirements: 12.1, 12.3_
 
-  - [ ] 17.4 Build Cost Monitoring dashboard (generation costs, per-user usage, monthly totals)
+  - [x] 17.4 Build Cost Monitoring dashboard (generation costs, per-user usage, monthly totals)
     - Create `/app/(studio)/admin/costs/page.tsx`
     - Query `generation_costs` table for: total generations this month, total estimated cost, average cost per generation
     - Per-user breakdown: top users by generation count and cost
     - Monthly trend chart (simple table or list for V1)
     - _Requirements: 14.4_
 
-  - [ ] 17.5 Build System Health monitoring (DB connectivity, Redis connectivity, System Core status)
+  - [x] 17.5 Build System Health monitoring (DB connectivity, Redis connectivity, System Core status)
     - Create `/app/api/health/route.ts` that checks: Supabase DB connectivity (simple query), Upstash Redis connectivity (PING), System Core loaded in memory
     - Display health status on admin dashboard
     - _Requirements: 17.7_
 
-- [ ] 18. Checkpoint — AI features, fermentation, export, brain UI, admin controls
+- [x] 18. Checkpoint — AI features, fermentation, export, brain UI, admin controls
   - Ensure pairing/substitution work, fermentation tracking is functional, PDF/Markdown export works with component-based recipes, Chef Brain page displays correctly, admin dashboard is functional and protected. Ask the user if questions arise.
 
 - [ ] 19. Property-Based Tests (fast-check)

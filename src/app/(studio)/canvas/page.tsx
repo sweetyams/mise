@@ -9,6 +9,8 @@
 // =============================================================================
 
 import { useState, useRef, useCallback } from 'react';
+import { suggestPairings } from './actions';
+import type { PairingSuggestion } from '@/lib/ai-provider/types';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -58,7 +60,34 @@ export default function CanvasPage() {
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
 
+  // Pairing state
+  const [pairingIngredient, setPairingIngredient] = useState('');
+  const [pairingSuggestions, setPairingSuggestions] = useState<PairingSuggestion[]>([]);
+  const [pairingLoading, setPairingLoading] = useState(false);
+  const [pairingError, setPairingError] = useState<string | null>(null);
+  const [showPairingPanel, setShowPairingPanel] = useState(false);
+
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // -------------------------------------------------------------------------
+  // Pairing handler
+  // -------------------------------------------------------------------------
+
+  const handlePairing = useCallback(async () => {
+    if (!pairingIngredient.trim()) return;
+    setPairingLoading(true);
+    setPairingError(null);
+    setPairingSuggestions([]);
+
+    const result = await suggestPairings(pairingIngredient.trim(), fingerprintId);
+    setPairingLoading(false);
+
+    if (result.success) {
+      setPairingSuggestions(result.data);
+    } else {
+      setPairingError(result.error);
+    }
+  }, [pairingIngredient, fingerprintId]);
 
   // -------------------------------------------------------------------------
   // Generate handler
@@ -362,6 +391,66 @@ export default function CanvasPage() {
             </button>
           </div>
         )}
+
+        {/* Ingredient Pairing Panel */}
+        <div className="mb-8">
+          <button
+            type="button"
+            onClick={() => setShowPairingPanel(!showPairingPanel)}
+            className="mb-3 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+          >
+            {showPairingPanel ? '▾ Hide Pairing Suggestions' : '▸ Ingredient Pairing Suggestions'}
+          </button>
+
+          {showPairingPanel && (
+            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+              <p className="mb-3 text-xs text-gray-500">
+                Enter an ingredient to discover complementary pairings using the active fingerprint&apos;s style.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={pairingIngredient}
+                  onChange={(e) => setPairingIngredient(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handlePairing()}
+                  placeholder="e.g. preserved lemon, miso, tahini…"
+                  className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800"
+                />
+                <button
+                  type="button"
+                  onClick={handlePairing}
+                  disabled={pairingLoading || !pairingIngredient.trim()}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {pairingLoading ? 'Finding…' : 'Pair'}
+                </button>
+              </div>
+
+              {pairingError && (
+                <p className="mt-2 text-xs text-red-600">{pairingError}</p>
+              )}
+
+              {pairingSuggestions.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {pairingSuggestions.map((s, i) => (
+                    <div
+                      key={i}
+                      className="rounded-md border border-gray-100 p-2 text-sm dark:border-gray-700"
+                    >
+                      <div className="flex items-centre justify-between">
+                        <span className="font-medium">{s.ingredient}</span>
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                          {s.affinity}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">{s.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Streamed Recipe Display */}
         {streamedText && (

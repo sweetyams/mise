@@ -19,6 +19,15 @@ import {
   markAsCooked,
   deleteRecipe,
 } from '../actions';
+import { suggestSubstitutions } from '../../canvas/actions';
+import type { Substitution } from '@/lib/types/recipe';
+import {
+  exportRecipeAsPdf,
+  exportRecipeAsMarkdown,
+  canExport,
+  canUseBranding,
+  type ExportOptions,
+} from '@/lib/export-service';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -99,6 +108,17 @@ export default function RecipeDetailClient({
   // Version comparison state
   const [compareA, setCompareA] = useState<string | null>(null);
   const [compareB, setCompareB] = useState<string | null>(null);
+
+  // Substitution state
+  const [unavailableIngredients, setUnavailableIngredients] = useState<Set<string>>(new Set());
+  const [substitutionResults, setSubstitutionResults] = useState<Record<string, Substitution[]>>({});
+  const [substitutionLoading, setSubstitutionLoading] = useState<string | null>(null);
+
+  // Export state
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'markdown'>('pdf');
+  const [exportBrandingName, setExportBrandingName] = useState('');
+  const [exportBrandingBusiness, setExportBrandingBusiness] = useState('');
+  const [showExportPanel, setShowExportPanel] = useState(false);
 
   // -------------------------------------------------------------------------
   // Dev notes save
@@ -211,6 +231,78 @@ export default function RecipeDetailClient({
       }
     },
     [recipe.id, selectedVersionId, router]
+  );
+
+  // -------------------------------------------------------------------------
+  // Export handler
+  // -------------------------------------------------------------------------
+
+  const handleExport = useCallback(() => {
+    const options: ExportOptions = { format: exportFormat };
+
+    if (exportBrandingName.trim()) {
+      options.branding = {
+        name: exportBrandingName.trim(),
+        businessName: exportBrandingBusiness.trim() || undefined,
+      };
+    }
+
+    if (exportFormat === 'pdf') {
+      const html = exportRecipeAsPdf(recipe, options);
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${recipe.title.replace(/[^a-zA-Z0-9]/g, '_')}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      const md = exportRecipeAsMarkdown(recipe, options);
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${recipe.title.replace(/[^a-zA-Z0-9]/g, '_')}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  }, [recipe, exportFormat, exportBrandingName, exportBrandingBusiness]);
+
+  // -------------------------------------------------------------------------
+  // Substitution — mark ingredient unavailable and fetch alternatives
+  // -------------------------------------------------------------------------
+
+  const handleToggleUnavailable = useCallback(
+    async (ingredientName: string, ingredient: Recipe['components'][0]['ingredients'][0]) => {
+      const key = ingredientName;
+      const newSet = new Set(unavailableIngredients);
+
+      if (newSet.has(key)) {
+        newSet.delete(key);
+        setUnavailableIngredients(newSet);
+        return;
+      }
+
+      newSet.add(key);
+      setUnavailableIngredients(newSet);
+
+      // Fetch substitutions if not already loaded
+      if (!substitutionResults[key]) {
+        setSubstitutionLoading(key);
+        const recipeContext = `${recipe.title} — ${recipe.thinking.approach ?? ''}`;
+        const result = await suggestSubstitutions(
+          ingredient,
+          recipeContext,
+          recipe.fingerprint
+        );
+        setSubstitutionLoading(null);
+
+        if (result.success) {
+          setSubstitutionResults((prev) => ({ ...prev, [key]: result.data }));
+        }
+      }
+    },
+    [unavailableIngredients, substitutionResults, recipe]
   );
 
   // -------------------------------------------------------------------------
@@ -333,6 +425,66 @@ export default function RecipeDetailClient({
               >
                 {saving ? 'Saving…' : 'Save Notes'}
               </button>
+            </div>
+
+            {/* Ingredient Substitutions */}
+            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+              <h2 className="mb-3 text-sm font-semibold">Ingredient Substitutions</h2>
+              <p className="mb-3 text-xs text-gray-500">
+                Mark ingredients as unavailable to see AI-suggested alternatives.
+              </p>
+              {recipe.components.map((comp) => (
+                <div key={comp.name} className="mb-3">
+                  <h3 className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                    {comp.name}
+                  </h3>
+                  <div className="space-y-1">
+                    {comp.ingredients.map((ing) => {
+                      const isUnavailable = unavailableIngredients.has(ing.name);
+                      const subs = substitutionResults[ing.name];
+                      const isLoading = substitutionLoading === ing.name;
+
+                      return (
+                        <div key={ing.name}>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleUnavailable(ing.name, ing)}
+                            className={`w-full rounded-md px-2 py-1 text-left text-xs transition-colors ${
+                              isUnavailable
+                                ? 'bg-amber-50 text-amber-700 line-through dark:bg-amber-950 dark:text-amber-400'
+                                : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'
+                            }`}
+                          >
+                            {ing.amount} {ing.unit} {ing.name}
+                            {isUnavailable && ' (unavailable)'}
+                          </button>
+                          {isLoading && (
+                            <div className="ml-4 mt-1 flex items-center gap-1 text-xs text-blue-600">
+                              <div className="h-2 w-2 animate-spin rounded-full border border-blue-600 border-t-transparent" />
+                              Finding alternatives…
+                            </div>
+                          )}
+                          {isUnavailable && subs && subs.length > 0 && (
+                            <div className="ml-4 mt-1 space-y-1">
+                              {subs.map((sub, i) => (
+                                <div
+                                  key={i}
+                                  className="rounded bg-green-50 px-2 py-1 text-xs text-green-700 dark:bg-green-950 dark:text-green-400"
+                                >
+                                  ↳ {sub.amount} {sub.unit} {sub.name}
+                                  {sub.notes && (
+                                    <span className="ml-1 text-green-500">— {sub.notes}</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -485,6 +637,72 @@ export default function RecipeDetailClient({
                         </span>
                       ))}
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Export */}
+            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+              <h2 className="mb-3 text-sm font-semibold">Export</h2>
+              <button
+                type="button"
+                onClick={() => setShowExportPanel(!showExportPanel)}
+                className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
+              >
+                {showExportPanel ? 'Hide Export Options' : 'Export Recipe'}
+              </button>
+
+              {showExportPanel && (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <label htmlFor="export-format" className="mb-1 block text-xs text-gray-500">
+                      Format
+                    </label>
+                    <select
+                      id="export-format"
+                      value={exportFormat}
+                      onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'markdown')}
+                      className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                    >
+                      <option value="pdf">PDF (HTML)</option>
+                      <option value="markdown">Markdown</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="branding-name" className="mb-1 block text-xs text-gray-500">
+                      Your Name (Creator/Brigade)
+                    </label>
+                    <input
+                      id="branding-name"
+                      type="text"
+                      value={exportBrandingName}
+                      onChange={(e) => setExportBrandingName(e.target.value)}
+                      placeholder="Your name"
+                      className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="branding-business" className="mb-1 block text-xs text-gray-500">
+                      Business Name (optional)
+                    </label>
+                    <input
+                      id="branding-business"
+                      type="text"
+                      value={exportBrandingBusiness}
+                      onChange={(e) => setExportBrandingBusiness(e.target.value)}
+                      placeholder="Business name"
+                      className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleExport}
+                    className="w-full rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                  >
+                    Download {exportFormat === 'pdf' ? 'HTML' : 'Markdown'}
+                  </button>
                 </div>
               )}
             </div>
