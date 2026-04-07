@@ -135,26 +135,29 @@ export default function CanvasPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
+        let errorMsg = 'Generation failed. Please try again.';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData?.error ?? errorMsg;
+        } catch {
+          // couldn't parse error body
+        }
         if (response.status === 429) {
-          setError(
-            errorData?.error ??
-              'Rate limit exceeded. Please try again later.'
-          );
+          setError(errorMsg);
         } else {
-          setError(errorData?.error ?? 'Generation failed. Please try again.');
+          setError(errorMsg);
         }
         setIsGenerating(false);
         return;
       }
 
-      // Stream the response
-      const reader = response.body?.getReader();
-      if (!reader) {
-        setError('Failed to read response stream.');
+      if (!response.body) {
+        setError('No response body received.');
         setIsGenerating(false);
         return;
       }
+
+      const reader = response.body.getReader();
 
       const decoder = new TextDecoder();
       let accumulated = '';
