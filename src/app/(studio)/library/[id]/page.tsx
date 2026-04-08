@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { getVersionHistory, type VersionHistoryEntry } from '@/lib/version-store';
+import { getRecipeCard } from '../actions';
 import RecipeDetailClient from './recipe-detail-client';
 
 // =============================================================================
@@ -43,10 +44,15 @@ export default async function RecipeDetailPage({ params }: PageProps) {
     ? historyResult
     : [];
 
+  // Fetch existing recipe card for current version
+  const cardResult = await getRecipeCard(id, recipe.version ?? 1);
+  const initialRecipeCard = cardResult.success ? cardResult.data : null;
+
   return (
     <RecipeDetailClient
       recipe={recipe}
       versions={versions}
+      initialRecipeCard={initialRecipeCard}
     />
   );
 }

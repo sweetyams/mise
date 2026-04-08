@@ -24,7 +24,10 @@ import {
   markAsCooked,
   deleteRecipe,
   getRecipeVersion,
+  generateAndSaveRecipeCard,
+  getRecipeCard,
 } from '../actions';
+import type { RecipeCard } from '@/lib/types/recipe-card';
 import { suggestSubstitutions } from '../../canvas/actions';
 import type { Substitution } from '@/lib/types/recipe';
 import {
@@ -43,6 +46,7 @@ import {
 interface RecipeDetailClientProps {
   recipe: any;
   versions: VersionHistoryEntry[];
+  initialRecipeCard?: RecipeCard | null;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -171,6 +175,7 @@ const dialBtnStyle: React.CSSProperties = {
 export default function RecipeDetailClient({
   recipe: recipeRow,
   versions,
+  initialRecipeCard = null,
 }: RecipeDetailClientProps) {
   const router = useRouter();
   const baseRecipe = rowToRecipe(recipeRow);
@@ -206,6 +211,10 @@ export default function RecipeDetailClient({
   const [exportBrandingBusiness, setExportBrandingBusiness] = useState('');
   const [showExportPanel, setShowExportPanel] = useState(false);
   const [customDialPrompt, setCustomDialPrompt] = useState('');
+  const [recipeCard, setRecipeCard] = useState<RecipeCard | null>(initialRecipeCard ?? null);
+  const [generatingCard, setGeneratingCard] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'detail' | 'cookbook'>(initialRecipeCard ? 'detail' : 'detail');
 
   // Version switching handler
   const handleViewVersion = useCallback(async (versionId: string | null) => {
@@ -213,22 +222,31 @@ export default function RecipeDetailClient({
       // Switch back to current (base) recipe
       setViewingVersionId(null);
       setVersionRecipe(null);
+      setViewMode('detail');
+      // Load card for current version
+      const cardResult = await getRecipeCard(baseRecipe.id, baseRecipe.version ?? 1);
+      setRecipeCard(cardResult.success ? cardResult.data : null);
       return;
     }
     if (versionId === viewingVersionId) return;
     setLoadingVersion(true);
+    setViewMode('detail');
     try {
       const result = await getRecipeVersion(versionId);
       if (result.success) {
         setViewingVersionId(versionId);
         setVersionRecipe(rowToRecipe(result.data));
+        // Load card for this version
+        const versionNum = result.data.version ?? 1;
+        const cardResult = await getRecipeCard(baseRecipe.id, versionNum);
+        setRecipeCard(cardResult.success ? cardResult.data : null);
       }
     } catch {
       // Failed to load version — stay on current
     } finally {
       setLoadingVersion(false);
     }
-  }, [viewingVersionId]);
+  }, [viewingVersionId, baseRecipe.id, baseRecipe.version]);
 
   const handleSaveDevNotes = useCallback(async () => {
     setSaving(true);
@@ -319,6 +337,26 @@ export default function RecipeDetailClient({
     }
   }, [recipe, exportFormat, exportBrandingName, exportBrandingBusiness]);
 
+  const handleGenerateRecipeCard = useCallback(async () => {
+    setGeneratingCard(true);
+    setCardError(null);
+    try {
+      // Pass versionId if viewing a specific version, otherwise generate from current row
+      const result = await generateAndSaveRecipeCard(baseRecipe.id, viewingVersionId);
+      if (result.success) {
+        setRecipeCard(result.data);
+        setViewMode('cookbook');
+        setMessage('Recipe card added to cookbook.');
+      } else {
+        setCardError(result.error);
+      }
+    } catch {
+      setCardError('An error occurred generating the recipe card. Please try again.');
+    } finally {
+      setGeneratingCard(false);
+    }
+  }, [baseRecipe.id, viewingVersionId]);
+
   const handleToggleUnavailable = useCallback(
     async (ingredientName: string, ingredient: Recipe['components'][0]['ingredients'][0]) => {
       const key = ingredientName;
@@ -372,6 +410,27 @@ export default function RecipeDetailClient({
             display: 'block',
             marginTop: '4px',
           }}>{recipe.id}</span>
+          {/* View mode toggle */}
+          {recipeCard && (
+            <div style={{ display: 'flex', gap: '0', marginTop: '8px' }}>
+              <button type="button" onClick={() => setViewMode('detail')}
+                style={{
+                  fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
+                  fontFamily: 'var(--ed-font)', padding: '4px 10px', cursor: 'pointer', transition: 'all 0.12s',
+                  border: '1px solid var(--ed-border)', borderRight: 'none',
+                  background: viewMode === 'detail' ? 'var(--ed-text-primary)' : 'transparent',
+                  color: viewMode === 'detail' ? 'var(--ed-bg)' : 'var(--ed-text-muted)',
+                }}>Detail</button>
+              <button type="button" onClick={() => setViewMode('cookbook')}
+                style={{
+                  fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
+                  fontFamily: 'var(--ed-font)', padding: '4px 10px', cursor: 'pointer', transition: 'all 0.12s',
+                  border: '1px solid var(--ed-border)',
+                  background: viewMode === 'cookbook' ? 'var(--ed-text-primary)' : 'transparent',
+                  color: viewMode === 'cookbook' ? 'var(--ed-bg)' : 'var(--ed-text-muted)',
+                }}>Cookbook</button>
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
@@ -453,6 +512,137 @@ export default function RecipeDetailClient({
             prepAheadNotes={recipe.intent?.prep_ahead_notes}
           />
 
+          {viewMode === 'cookbook' && recipeCard ? (
+            /* ===== COOKBOOK CARD VIEW ===== */
+            <div style={{ padding: '40px 0' }}>
+              <div style={{ maxWidth: '640px' }}>
+                {/* Metadata */}
+                <div style={{ marginBottom: '24px' }}>
+                  <span style={{
+                    fontSize: 'var(--ed-fs-micro)',
+                    fontWeight: 600,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    color: 'var(--ed-text-muted)',
+                    display: 'block',
+                  }}>{recipeCard.content.metadata.sectionTag}</span>
+                  <span style={{
+                    fontSize: 'var(--ed-fs-small)',
+                    color: 'var(--ed-text-secondary)',
+                    display: 'block',
+                    marginTop: '4px',
+                  }}>{recipeCard.content.metadata.serves}</span>
+                  <span style={{
+                    fontSize: 'var(--ed-fs-small)',
+                    color: 'var(--ed-text-muted)',
+                    display: 'block',
+                    marginTop: '2px',
+                    fontStyle: 'italic',
+                  }}>{recipeCard.content.metadata.context}</span>
+                </div>
+
+                {/* Title */}
+                <h2 style={{
+                  fontSize: '28px',
+                  fontWeight: 700,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color: 'var(--ed-text-primary)',
+                  margin: '0 0 8px',
+                  fontFamily: 'var(--ed-font)',
+                }}>{recipeCard.content.title}</h2>
+                <hr style={{ border: 'none', borderTop: '2px solid var(--ed-text-primary)', margin: '0 0 24px', width: '60px' }} />
+
+                {/* Headnote */}
+                <p style={{
+                  fontSize: 'var(--ed-fs-body)',
+                  color: 'var(--ed-text-secondary)',
+                  lineHeight: 1.75,
+                  margin: '0 0 32px',
+                }}>{recipeCard.content.headnote}</p>
+
+                {/* Ingredients */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h3 style={{
+                    ...sectionLabelStyle,
+                    fontSize: 'var(--ed-fs-micro)',
+                    marginBottom: '16px',
+                  }}>Ingredients</h3>
+                  {recipeCard.content.ingredients.map((ing, i) => (
+                    <div key={i} style={{
+                      fontSize: 'var(--ed-fs-body)',
+                      color: 'var(--ed-text-primary)',
+                      lineHeight: 1.65,
+                      marginBottom: '4px',
+                    }}>
+                      <span style={{ fontWeight: 600 }}>{ing.name}</span>
+                      {ing.quantity && <span style={{ color: 'var(--ed-text-secondary)' }}>, {ing.quantity}</span>}
+                      {ing.preparation && <span style={{ color: 'var(--ed-text-muted)' }}>, {ing.preparation}</span>}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Method */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h3 style={{
+                    ...sectionLabelStyle,
+                    fontSize: 'var(--ed-fs-micro)',
+                    marginBottom: '16px',
+                  }}>Method</h3>
+                  {recipeCard.content.method.map((step) => (
+                    <div key={step.number} style={{ marginBottom: '16px' }}>
+                      <p style={{
+                        fontSize: 'var(--ed-fs-body)',
+                        color: 'var(--ed-text-primary)',
+                        lineHeight: 1.75,
+                        margin: 0,
+                      }}>
+                        <span style={{ fontWeight: 600, color: 'var(--ed-text-muted)', marginRight: '8px' }}>{step.number}.</span>
+                        {step.instruction}
+                      </p>
+                      {step.warning && (
+                        <p style={{
+                          fontSize: 'var(--ed-fs-small)',
+                          color: '#B03A2A',
+                          margin: '4px 0 0 24px',
+                          fontStyle: 'italic',
+                        }}>⚠ {step.warning}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Plating */}
+                {recipeCard.content.plating && (
+                  <div>
+                    <h3 style={{
+                      ...sectionLabelStyle,
+                      fontSize: 'var(--ed-fs-micro)',
+                      marginBottom: '8px',
+                    }}>Serving</h3>
+                    {recipeCard.content.plating.geometry && (
+                      <p style={{
+                        fontSize: 'var(--ed-fs-body)',
+                        color: 'var(--ed-text-secondary)',
+                        lineHeight: 1.65,
+                        margin: '0 0 4px',
+                      }}>{recipeCard.content.plating.geometry}</p>
+                    )}
+                    {recipeCard.content.plating.accompaniments.length > 0 && (
+                      <p style={{
+                        fontSize: 'var(--ed-fs-body)',
+                        color: 'var(--ed-text-muted)',
+                        lineHeight: 1.65,
+                        margin: 0,
+                      }}>{recipeCard.content.plating.accompaniments.join(' · ')}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* ===== EDITORIAL DETAIL VIEW ===== */
+            <>
           {hasStructuredData ? (
             <>
               {/* Decision Lock Answers — collapsible */}
@@ -629,6 +819,8 @@ export default function RecipeDetailClient({
             <div style={{ marginTop: 'var(--ed-spacing-section)' }}>
               <DisplayModeSwitcher recipe={recipe} />
             </div>
+          )}
+          </>
           )}
 
           {/* Footer */}
@@ -996,6 +1188,38 @@ export default function RecipeDetailClient({
               onMouseLeave={(e) => { if (!saving) e.currentTarget.style.opacity = '0.8'; }}>
               {saving ? 'Saving…' : 'Save Notes'}
             </button>
+          </div>
+
+          {/* Cookbook Card */}
+          <div style={panelSectionStyle}>
+            <h3 style={sectionLabelStyle}>Cookbook</h3>
+            <button
+              type="button"
+              onClick={handleGenerateRecipeCard}
+              disabled={generatingCard || !hasStructuredData}
+              title={!hasStructuredData ? 'Recipe needs structured data to generate a cookbook card.' : undefined}
+              style={{
+                width: '100%',
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.08em',
+                padding: '9px 8px',
+                border: '1px solid var(--ed-text-primary)',
+                background: 'var(--ed-text-primary)',
+                color: 'var(--ed-bg)',
+                cursor: generatingCard || !hasStructuredData ? 'not-allowed' : 'pointer',
+                fontFamily: 'var(--ed-font)',
+                textTransform: 'uppercase',
+                transition: 'opacity 150ms',
+                opacity: generatingCard || !hasStructuredData ? 0.4 : 1,
+              }}
+              onMouseEnter={(e) => { if (!generatingCard && hasStructuredData) e.currentTarget.style.opacity = '0.7'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = (generatingCard || !hasStructuredData) ? '0.4' : '1'; }}>
+              {generatingCard ? 'Generating…' : recipeCard ? 'Regenerate Card' : 'Add to Cookbook'}
+            </button>
+            {cardError && (
+              <p style={{ marginTop: '8px', fontSize: 'var(--ed-fs-small)', color: '#B03A2A' }}>{cardError}</p>
+            )}
           </div>
 
           {/* Export */}

@@ -266,4 +266,36 @@ export class ClaudeProvider implements AIProvider {
       throw mapError(err);
     }
   }
+
+  // -------------------------------------------------------------------------
+  // generateRecipeCard — non-streaming, uses Sonnet
+  // -------------------------------------------------------------------------
+
+  async generateRecipeCard(
+    recipeData: string,
+    transformationPrompt: string
+  ): Promise<string> {
+    try {
+      const response = await this.client.messages.create({
+        model: this.generationModel,
+        max_tokens: 4096,
+        system: transformationPrompt,
+        messages: [{ role: 'user', content: recipeData }],
+      });
+
+      const textBlock = response.content.find((b) => b.type === 'text');
+      if (!textBlock || textBlock.type !== 'text') {
+        const err: AIProviderError = {
+          code: 'invalid_response',
+          message: 'AI provider returned an unexpected response format.',
+          retryable: true,
+        };
+        throw err;
+      }
+      return textBlock.text;
+    } catch (err) {
+      if ((err as AIProviderError).code) throw err;
+      throw mapError(err);
+    }
+  }
 }

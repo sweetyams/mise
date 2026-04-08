@@ -285,3 +285,36 @@ export function validateRecipe(data: unknown): { valid: boolean; errors: string[
   });
   return { valid: false, errors };
 }
+
+// ---------------------------------------------------------------------------
+// Cookbook Format Schemas — Recipe Card validation
+// ---------------------------------------------------------------------------
+
+export const CookbookIngredientSchema = z.object({
+  name: z.string().min(1),
+  quantity: z.string(),
+  preparation: z.string(),
+});
+
+export const CookbookStepSchema = z.object({
+  number: z.number().int().positive(),
+  instruction: z.string().min(1),
+  donenessCue: z.string().optional(),
+  warning: z.string().optional(),
+});
+
+export const CookbookFormatSchema = z.object({
+  metadata: z.object({
+    sectionTag: z.string().min(1),
+    serves: z.string().min(1),
+    context: z.string().min(1),
+  }),
+  title: z.string().min(1),
+  headnote: z.string().min(1),
+  ingredients: z.array(CookbookIngredientSchema).min(1),
+  method: z.array(CookbookStepSchema).min(1),
+  plating: z.object({
+    geometry: z.string(),
+    accompaniments: z.array(z.string()),
+  }),
+});

@@ -54,4 +54,5 @@ export interface AIProvider {
     recipeContext: string,
     systemPrompt: string
   ): Promise<Substitution[]>;
+  generateRecipeCard(recipeData: string, transformationPrompt: string): Promise<string>;
 }

@@ -203,7 +203,29 @@ export async function dialRecipe(
     userId
   );
 
-  // 6. Create new version with dial_direction
+  // 6. Save the SOURCE recipe as a version first (preserves the original before overwriting)
+  //    Only do this if no versions exist yet (first dial from the original recipe)
+  if (!fromVersionId) {
+    const { data: existingVersions } = await supabase
+      .from('recipe_versions')
+      .select('id')
+      .eq('recipe_id', recipeId)
+      .limit(1);
+
+    if (!existingVersions || existingVersions.length === 0) {
+      // No versions exist — save the original as v1
+      const sourceSnapshot = buildPromptSnapshot(
+        assembled,
+        0,
+        fingerprintId,
+        sourceRecipe.promptSnapshot?.fingerprint?.fingerprintName ?? '',
+        userId
+      );
+      await createVersion(recipeId, sourceRecipe, sourceSnapshot);
+    }
+  }
+
+  // 7. Create new version with dial_direction (the evolved recipe)
   const versionResult = await createVersion(
     recipeId,
     newRecipe,
@@ -215,7 +237,7 @@ export async function dialRecipe(
     return { error: versionResult.error };
   }
 
-  // 6b. Update the main recipe row with the new data
+  // 8. Update the main recipe row with the new data
   const { error: updateError } = await supabase
     .from('recipes')
     .update({
@@ -235,7 +257,7 @@ export async function dialRecipe(
     // Non-fatal — version was still created
   }
 
-  // 7. Build changes summary
+  // 9. Build changes summary
   const changes = buildChangesSummary(sourceRecipe, newRecipe, direction);
 
   return {

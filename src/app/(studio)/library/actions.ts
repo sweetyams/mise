@@ -11,6 +11,10 @@
 
 import { createClient } from '@/lib/supabase/server';
 import type { Recipe } from '@/lib/types/recipe';
+import type { RecipeCard } from '@/lib/types/recipe-card';
+import { CookbookFormatSchema } from '@/lib/zod-schemas';
+import { buildRecipeCardPrompt } from '@/lib/recipe-card-prompt';
+import { createAIProvider } from '@/lib/ai-provider';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -326,4 +330,179 @@ export async function getRecipeVersion(
 
   // Return the version's recipe_data as a RecipeRow-like object
   return { success: true, data: data.recipe_data as RecipeRow };
+}
+
+
+// ---------------------------------------------------------------------------
+// generateAndSaveRecipeCard — AI-powered cookbook card generation
+// ---------------------------------------------------------------------------
+
+export async function generateAndSaveRecipeCard(
+  recipeId: string,
+  versionId?: string | null
+): Promise<ActionResult<RecipeCard>> {
+  // 1. Authenticate
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'You must be signed in to generate a recipe card.' };
+  }
+
+  // 2. Get recipe data — from a specific version or the current recipe row
+  let recipeData: Record<string, unknown>;
+  let version: number;
+
+  if (versionId) {
+    // Fetch from recipe_versions table
+    const { data: versionRow, error: versionError } = await supabase
+      .from('recipe_versions')
+      .select('recipe_data, version_number')
+      .eq('id', versionId)
+      .single();
+
+    if (versionError || !versionRow) {
+      return { success: false, error: 'Version not found.' };
+    }
+    recipeData = versionRow.recipe_data as Record<string, unknown>;
+    version = versionRow.version_number ?? 1;
+  } else {
+    const { data: recipe, error: recipeError } = await supabase
+      .from('recipes')
+      .select('*')
+      .eq('id', recipeId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (recipeError || !recipe) {
+      return { success: false, error: 'Recipe not found.' };
+    }
+    recipeData = recipe;
+    version = recipe.version ?? 1;
+  }
+
+  // 3. Serialize recipe data and build prompt
+  const recipeJson = JSON.stringify(recipeData);
+  const prompt = buildRecipeCardPrompt(recipeJson);
+
+  // 4. Call AI provider
+  let aiResponse: string;
+  try {
+    const provider = await createAIProvider();
+    aiResponse = await provider.generateRecipeCard(prompt.userMessage, prompt.systemPrompt);
+  } catch {
+    return {
+      success: false,
+      error: 'An error occurred generating the recipe card. Please try again.',
+    };
+  }
+
+  // 5. Parse AI response — try JSON.parse, then markdown code blocks, then { ... }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(aiResponse);
+  } catch {
+    const codeBlockMatch = aiResponse.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+    if (codeBlockMatch) {
+      try {
+        parsed = JSON.parse(codeBlockMatch[1].trim());
+      } catch {
+        /* continue */
+      }
+    }
+    if (!parsed) {
+      const objMatch = aiResponse.match(/\{[\s\S]*\}/);
+      if (objMatch) {
+        try {
+          parsed = JSON.parse(objMatch[0]);
+        } catch {
+          /* continue */
+        }
+      }
+    }
+  }
+
+  if (!parsed) {
+    return {
+      success: false,
+      error: 'The generated recipe card had an unexpected format. Please try again.',
+    };
+  }
+
+  // 6. Validate with Zod
+  const validation = CookbookFormatSchema.safeParse(parsed);
+  if (!validation.success) {
+    return {
+      success: false,
+      error: 'The generated recipe card had an unexpected format. Please try again.',
+    };
+  }
+
+  const validatedContent = validation.data;
+
+  // 7. Upsert into recipe_cards (one card per recipe+version)
+  const { data: card, error: upsertError } = await supabase
+    .from('recipe_cards')
+    .upsert(
+      {
+        id: crypto.randomUUID(),
+        recipe_id: recipeId,
+        user_id: user.id,
+        recipe_version: version,
+        content: validatedContent,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'recipe_id,recipe_version' }
+    )
+    .select('*')
+    .single();
+
+  if (upsertError || !card) {
+    return {
+      success: false,
+      error: 'Failed to save the recipe card. Please try again.',
+    };
+  }
+
+  return { success: true, data: card as RecipeCard };
+}
+
+// ---------------------------------------------------------------------------
+// getRecipeCard — fetch existing cookbook card for a recipe
+// ---------------------------------------------------------------------------
+
+export async function getRecipeCard(
+  recipeId: string,
+  recipeVersion?: number
+): Promise<ActionResult<RecipeCard | null>> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'You must be signed in to view recipe cards.' };
+  }
+
+  let query = supabase
+    .from('recipe_cards')
+    .select('*')
+    .eq('recipe_id', recipeId);
+
+  if (recipeVersion != null) {
+    query = query.eq('recipe_version', recipeVersion);
+  } else {
+    query = query.order('recipe_version', { ascending: false }).limit(1);
+  }
+
+  const { data: cards, error } = await query;
+
+  if (error) {
+    return { success: false, error: 'Failed to load recipe card.' };
+  }
+
+  const card = cards && cards.length > 0 ? cards[0] : null;
+  return { success: true, data: (card as RecipeCard) ?? null };
 }
