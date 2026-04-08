@@ -1,20 +1,19 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import DisplayModeSwitcher from '@/components/display-mode-switcher';
+import { parseRecipeMarkdown } from '@/lib/recipe-parser';
 import type { Recipe } from '@/lib/types/recipe';
 
 type ComplexityMode = 'foundation' | 'kitchen' | 'riff';
 type View = 'markdown' | 'structured';
 
-const FINGERPRINTS = [
-  { id: 'matty-matheson', name: 'Matty Matheson' },
-  { id: 'brad-leone', name: 'Brad Leone' },
-  { id: 'ottolenghi', name: 'Ottolenghi' },
-  { id: 'samin-nosrat', name: 'Samin Nosrat' },
-  { id: 'claire-saffitz', name: 'Claire Saffitz' },
-];
+interface ChefOption {
+  id: string;
+  name: string;
+  slug?: string;
+}
 
 const MODES: { value: ComplexityMode; label: string; desc: string }[] = [
   { value: 'foundation', label: 'Foundation', desc: 'Extra explanation and doneness cues' },
@@ -23,8 +22,26 @@ const MODES: { value: ComplexityMode; label: string; desc: string }[] = [
 ];
 
 export default function CanvasPage() {
+  // Chef profiles loaded from DB
+  const [chefs, setChefs] = useState<ChefOption[]>([]);
+  const [chefsLoading, setChefsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/fingerprints')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d?.fingerprints) {
+          setChefs(d.fingerprints);
+          if (d.fingerprints.length > 0 && !fpId) {
+            setFpId(d.fingerprints[0].slug ?? d.fingerprints[0].id);
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => setChefsLoading(false));
+  }, []);
   const [dish, setDish] = useState('');
-  const [fpId, setFpId] = useState('ottolenghi');
+  const [fpId, setFpId] = useState('');
   const [mode, setMode] = useState<ComplexityMode>('kitchen');
   const [servings, setServings] = useState(4);
   const [showMore, setShowMore] = useState(false);
@@ -45,6 +62,12 @@ export default function CanvasPage() {
   const [saved, setSaved] = useState(false);
   const [view, setView] = useState<View>('markdown');
 
+  // Admin prompt log state
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const [promptLog, setPromptLog] = useState<any>(null);
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+  const [promptLogOpen, setPromptLogOpen] = useState(false);
+
   const generate = useCallback(async () => {
     if (!dish.trim()) return;
     setGenerating(true);
@@ -54,6 +77,8 @@ export default function CanvasPage() {
     setRecipe(null);
     setSaved(false);
     setView('markdown');
+    setPromptLog(null);
+    setPromptLogOpen(false);
 
     try {
       const b: Record<string, unknown> = { dishDescription: dish.trim(), fingerprintId: fpId, complexityMode: mode, servings };
@@ -69,29 +94,85 @@ export default function CanvasPage() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let text = '';
+      let promptLogExtracted = false;
       while (true) {
         const { done: sd, value } = await reader.read();
         if (sd) break;
         text += decoder.decode(value, { stream: true });
+
+        // Extract prompt log from stream preamble (admin only)
+        if (!promptLogExtracted && text.includes('<!--PROMPT_LOG:') && text.includes(':END_PROMPT_LOG-->')) {
+          const logMatch = text.match(/<!--PROMPT_LOG:([\s\S]*?):END_PROMPT_LOG-->/);
+          if (logMatch) {
+            try { setPromptLog(JSON.parse(logMatch[1])); } catch { /* ignore */ }
+            text = text.replace(logMatch[0], '');
+          }
+          promptLogExtracted = true;
+        }
+
         setContent(text);
+      }
+      // Final check in case the preamble arrived in one chunk
+      if (!promptLogExtracted && text.includes('<!--PROMPT_LOG:')) {
+        const logMatch = text.match(/<!--PROMPT_LOG:([\s\S]*?):END_PROMPT_LOG-->/);
+        if (logMatch) {
+          try { setPromptLog(JSON.parse(logMatch[1])); } catch { /* ignore */ }
+          text = text.replace(logMatch[0], '');
+          setContent(text);
+        }
       }
       setDone(true);
 
       // Auto-parse into structured recipe in background
       setParsing(true);
       try {
-        const parseRes = await fetch('/api/parse-recipe', {
+        const { recipe: parsedRecipe, warnings } = parseRecipeMarkdown(text);
+        if (warnings.length > 0) {
+          console.warn('[MISE] Parse warnings:', warnings);
+        }
+
+        // Save with structured data
+        const saveRes = await fetch('/api/save-recipe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ markdown: text, fingerprintId: fpId }),
+          body: JSON.stringify({
+            title: parsedRecipe.title || dish.trim(),
+            markdown: text,
+            fingerprintId: fpId,
+            complexityMode: mode,
+            intent: {
+              occasion: occasion || '',
+              mood: mood || '',
+              season: season ? [season] : [],
+              effort: parsedRecipe.intent?.effort || 'medium',
+              feeds: parsedRecipe.intent?.feeds || servings,
+              total_time_minutes: parsedRecipe.intent?.total_time_minutes || 0,
+              active_time_minutes: parsedRecipe.intent?.active_time_minutes || 0,
+              prep_ahead_notes: parsedRecipe.intent?.prep_ahead_notes || '',
+              can_prep_ahead: !!parsedRecipe.intent?.prep_ahead_notes,
+              hands_off_minutes: 0,
+              dietary: [],
+              dietary_notes: '',
+              time: parsedRecipe.intent?.total_time_minutes || 0,
+            },
+            flavour: parsedRecipe.flavour,
+            components: parsedRecipe.components,
+            timeline: parsedRecipe.timeline,
+            variations: parsedRecipe.variations,
+            thinking: parsedRecipe.thinking,
+            decision_lock_answers: parsedRecipe.decisionLockAnswers || null,
+          }),
         });
-        const parseData = await parseRes.json();
-        if (parseData.recipe) {
-          setRecipe(parseData.recipe);
+        const saveData = await saveRes.json();
+        if (saveData.saved) {
+          setRecipe(parsedRecipe as any);
           setSaved(true);
+        } else {
+          console.error('[MISE] Save failed:', saveData.error);
         }
-      } catch {
-        // Parse failed — markdown view still works
+      } catch (parseErr) {
+        console.error('[MISE] Parse/save error:', parseErr);
+        // Parse/save failed — markdown view still works
       } finally {
         setParsing(false);
       }
@@ -116,9 +197,11 @@ export default function CanvasPage() {
           placeholder="A hearty lamb shoulder braise with preserved lemon and olives…"
           className="w-full resize-none rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-gray-400 focus:bg-white focus:outline-none" />
         <div className="grid grid-cols-3 gap-3">
-          <select value={fpId} onChange={e => setFpId(e.target.value)} disabled={generating}
+          <select value={fpId} onChange={e => setFpId(e.target.value)} disabled={generating || chefsLoading}
             className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none">
-            {FINGERPRINTS.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            {chefsLoading && <option>Loading chefs…</option>}
+            {chefs.map(f => <option key={f.id} value={f.slug ?? f.id}>{f.name}</option>)}
+            {!chefsLoading && chefs.length === 0 && <option>No chefs configured</option>}
           </select>
           <select value={mode} onChange={e => setMode(e.target.value as ComplexityMode)} disabled={generating}
             className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none">
@@ -171,7 +254,7 @@ export default function CanvasPage() {
               {generating && <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />}
               {parsing ? '⏳ Saving…' : saved ? '✓ Saved to library' : done ? '✓ Ready' : 'Streaming…'}
               <span className="text-gray-300">·</span>
-              <span>{FINGERPRINTS.find(f => f.id === fpId)?.name}</span>
+              <span>{chefs.find(f => (f.slug ?? f.id) === fpId)?.name ?? fpId}</span>
             </div>
             {done && (
               <div className="flex gap-1.5">
@@ -226,6 +309,99 @@ export default function CanvasPage() {
                 {content}
               </ReactMarkdown>
             </article>
+          )}
+        </div>
+      )}
+
+      {/* Admin Prompt Log — only visible when prompt log data is available (admin users) */}
+      {promptLog && (
+        <div className="mt-6 overflow-hidden rounded-xl border border-amber-200 bg-amber-50 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setPromptLogOpen(!promptLogOpen)}
+            className="flex w-full items-center justify-between px-5 py-3 text-left text-xs font-semibold text-amber-800 hover:bg-amber-100"
+          >
+            <span>🔧 Prompt Log — {promptLog.totalInputTokens} input tokens</span>
+            <span>{promptLogOpen ? '▲' : '▼'}</span>
+          </button>
+          {promptLogOpen && (
+            <div className="border-t border-amber-200 px-5 py-4 space-y-4 text-xs font-mono text-amber-900">
+              {/* Layer summary */}
+              <div>
+                <h4 className="mb-2 font-sans font-semibold text-amber-800">Layer Token Breakdown</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded bg-amber-100 px-3 py-2">
+                    <span className="font-sans font-medium">System Core</span>
+                    <span className="ml-2 text-amber-600">{promptLog.layers.systemCore.tokenCount} tokens</span>
+                  </div>
+                  <div className="rounded bg-amber-100 px-3 py-2">
+                    <span className="font-sans font-medium">Fingerprint</span>
+                    <span className="ml-2 text-amber-600">{promptLog.layers.fingerprint.tokenCount} tokens (v{promptLog.layers.fingerprint.version})</span>
+                  </div>
+                  <div className="rounded bg-amber-100 px-3 py-2">
+                    <span className="font-sans font-medium">Chef Brain</span>
+                    <span className="ml-2 text-amber-600">{promptLog.layers.chefBrain.tokenCount} tokens (v{promptLog.layers.chefBrain.version})</span>
+                  </div>
+                  <div className="rounded bg-amber-100 px-3 py-2">
+                    <span className="font-sans font-medium">Decision Lock</span>
+                    <span className="ml-2 text-amber-600">
+                      {promptLog.layers.decisionLock.tokenCount} tokens
+                      {promptLog.layers.decisionLock.questionCount > 0 && ` (${promptLog.layers.decisionLock.questionCount} questions)`}
+                    </span>
+                  </div>
+                  <div className="rounded bg-amber-100 px-3 py-2">
+                    <span className="font-sans font-medium">Request Context</span>
+                    <span className="ml-2 text-amber-600">{promptLog.layers.requestContext.tokenCount} tokens</span>
+                  </div>
+                  <div className="rounded bg-amber-200 px-3 py-2 font-sans font-semibold">
+                    <span>Total Input</span>
+                    <span className="ml-2">{promptLog.totalInputTokens} tokens</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fingerprint (full chef profile text) */}
+              {promptLog.layers.fingerprint.text && (
+                <div>
+                  <h4 className="mb-1 font-sans font-semibold text-amber-800">Fingerprint — Chef Profile ({promptLog.layers.fingerprint.tokenCount} tokens)</h4>
+                  <pre className="max-h-80 overflow-y-auto whitespace-pre-wrap rounded bg-white p-3 text-xs text-gray-700 border border-amber-200">{promptLog.layers.fingerprint.text}</pre>
+                </div>
+              )}
+
+              {/* Chef Brain */}
+              {promptLog.layers.chefBrain.text && (
+                <div>
+                  <h4 className="mb-1 font-sans font-semibold text-amber-800">Chef Brain — User Preferences ({promptLog.layers.chefBrain.tokenCount} tokens)</h4>
+                  <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded bg-white p-3 text-xs text-gray-700 border border-amber-200">{promptLog.layers.chefBrain.text}</pre>
+                </div>
+              )}
+
+              {/* Decision Lock text */}
+              {promptLog.layers.decisionLock.text && (
+                <div>
+                  <h4 className="mb-1 font-sans font-semibold text-amber-800">Decision Lock (User Message)</h4>
+                  <pre className="whitespace-pre-wrap rounded bg-white p-3 text-xs text-gray-700 border border-amber-200">{promptLog.layers.decisionLock.text}</pre>
+                </div>
+              )}
+
+              {/* Request context */}
+              <div>
+                <h4 className="mb-1 font-sans font-semibold text-amber-800">Request Context</h4>
+                <pre className="whitespace-pre-wrap rounded bg-white p-3 text-xs text-gray-700 border border-amber-200">{promptLog.layers.requestContext.text}</pre>
+              </div>
+
+              {/* Full user message */}
+              <div>
+                <h4 className="mb-1 font-sans font-semibold text-amber-800">Full User Message (sent to model)</h4>
+                <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded bg-white p-3 text-xs text-gray-700 border border-amber-200">{promptLog.userMessage}</pre>
+              </div>
+
+              {/* Full system prompt */}
+              <div>
+                <h4 className="mb-1 font-sans font-semibold text-amber-800">Full System Prompt (all layers combined)</h4>
+                <pre className="max-h-96 overflow-y-auto whitespace-pre-wrap rounded bg-white p-3 text-xs text-gray-700 border border-amber-200">{promptLog.systemPrompt}</pre>
+              </div>
+            </div>
           )}
         </div>
       )}

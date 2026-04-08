@@ -20,6 +20,22 @@ export async function POST(request: NextRequest) {
   const dish = body.dishDescription as string;
   if (!dish?.trim()) return NextResponse.json({ error: 'Describe what you want to cook.' }, { status: 400 });
 
+  // Fetch recent recipes to prevent repetition
+  let recentRecipes: string[] = [];
+  try {
+    const { data: recent } = await supabase
+      .from('recipes')
+      .select('title')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(15);
+    if (recent) {
+      recentRecipes = recent.map((r) => r.title).filter(Boolean);
+    }
+  } catch {
+    // Non-fatal — proceed without history
+  }
+
   const ctx: RequestContext = {
     dishDescription: dish.trim(),
     servings: (body.servings as number) || 4,
@@ -27,11 +43,13 @@ export async function POST(request: NextRequest) {
     mood: body.mood as string | undefined,
     season: body.season as string | undefined,
     constraints: body.constraints as string[] | undefined,
+    recentRecipes,
   };
 
   let assembled;
   try {
     assembled = await assemblePrompt(user.id, (body.fingerprintId as string) || 'ottolenghi', ctx, (body.complexityMode as ComplexityMode) || 'kitchen');
+    console.log('[MISE] Fingerprint:', body.fingerprintId, '| Layer 2 tokens:', assembled.layers.fingerprint.tokenCount, '| Text preview:', assembled.layers.fingerprint.text.slice(0, 100));
   } catch (err) {
     console.error('[MISE] Prompt assembly failed:', err);
     return NextResponse.json({ error: 'Prompt assembly failed.' }, { status: 500 });
@@ -44,9 +62,30 @@ export async function POST(request: NextRequest) {
   }
 
   const encoder = new TextEncoder();
+  const isAdmin = user.email === process.env.ADMIN_EMAIL;
+
+  // Build prompt log for admin visibility
+  const promptLog = isAdmin ? {
+    layers: {
+      systemCore: { tokenCount: assembled.layers.systemCore.tokenCount, version: assembled.layers.systemCore.version },
+      fingerprint: { tokenCount: assembled.layers.fingerprint.tokenCount, version: assembled.layers.fingerprint.version, text: assembled.layers.fingerprint.text },
+      chefBrain: { tokenCount: assembled.layers.chefBrain.tokenCount, version: assembled.layers.chefBrain.version, text: assembled.layers.chefBrain.text },
+      decisionLock: { tokenCount: assembled.layers.decisionLock.tokenCount, questionCount: assembled.layers.decisionLock.text ? assembled.layers.decisionLock.text.split('\n').filter((l: string) => /^\d+\./.test(l)).length : 0, text: assembled.layers.decisionLock.text },
+      requestContext: { tokenCount: assembled.layers.requestContext.tokenCount, text: assembled.layers.requestContext.text },
+    },
+    totalInputTokens: Object.values(assembled.layers).reduce((sum, l) => sum + l.tokenCount, 0),
+    systemPrompt: assembled.systemPrompt,
+    userMessage: assembled.userMessage,
+  } : null;
+
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        // Send prompt log as a JSON preamble for admin users
+        if (promptLog) {
+          controller.enqueue(encoder.encode(`<!--PROMPT_LOG:${JSON.stringify(promptLog)}:END_PROMPT_LOG-->`));
+        }
+
         const aiStream = await provider.generateRecipe(assembled.systemPrompt, assembled.userMessage);
         const reader = aiStream.getReader();
         while (true) {

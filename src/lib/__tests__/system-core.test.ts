@@ -59,9 +59,10 @@ describe('system-core', () => {
     expect(core.text.toLowerCase()).toContain('textural contrast');
   });
 
-  it('requires structured JSON output', () => {
+  it('requires structured markdown output format', () => {
     const core = getSystemCore();
-    expect(core.text).toContain('JSON');
+    expect(core.text).toContain('OUTPUT FORMAT');
+    expect(core.text).toContain('markdown');
   });
 
   it('includes thinking section references', () => {

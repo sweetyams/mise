@@ -2,8 +2,8 @@
 // MISE Prompt Assembler — Hot Path for Recipe Generation
 // =============================================================================
 // Fetches all 4 prompt layers in parallel, assembles them, and streams the
-// generation response. Never hits Postgres directly (only memory and Redis).
-// Requirements: 5.1, 5.2, 5.3, 5.15, 5.16, 6.6, 20.2, 20.3, 20.4
+// generation response. Uses layered fingerprint assembly when full_profile
+// exists, falls back to flat prompt_text.
 // =============================================================================
 
 import type {
@@ -12,9 +12,12 @@ import type {
   PromptLayer,
   PromptSnapshot,
 } from '@/lib/types/recipe';
+import type { FingerprintRecipeContext } from '@/lib/types/fingerprint-profile';
 import { getSystemCore } from '@/lib/system-core';
-import { getFingerprint } from '@/lib/fingerprint-cache';
+import { getFingerprint, getFingerprintBySlug } from '@/lib/fingerprint-cache';
+import { assembleFingerprint, assembleFlatFingerprint } from '@/lib/fingerprint-loader';
 import { getCachedBrain } from '@/lib/brain-compiler';
+import { assembleDecisionLock } from '@/lib/decision-lock-assembler';
 import { createAIProvider } from '@/lib/ai-provider';
 import { COMPLEXITY_INSTRUCTIONS } from '@/lib/complexity-modes';
 
@@ -29,6 +32,11 @@ export interface RequestContext {
   season?: string;
   servings?: number;
   constraints?: string[];
+  recentRecipes?: string[];
+  // Hints for fingerprint layer selection
+  techniques?: string[];
+  ingredients?: string[];
+  region?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -45,15 +53,23 @@ function estimateTokens(text: string): number {
 
 function buildRequestContext(ctx: RequestContext): string {
   const parts: string[] = [ctx.dishDescription];
-
   if (ctx.occasion) parts.push(`Occasion: ${ctx.occasion}`);
   if (ctx.mood) parts.push(`Mood: ${ctx.mood}`);
   if (ctx.season) parts.push(`Season: ${ctx.season}`);
   if (ctx.servings) parts.push(`Servings: ${ctx.servings}`);
-  if (ctx.constraints && ctx.constraints.length > 0) {
-    parts.push(`Constraints: ${ctx.constraints.join(', ')}`);
+  if (ctx.constraints?.length) parts.push(`Constraints: ${ctx.constraints.join(', ')}`);
+
+  // Anti-repetition: tell the model what this user has already generated
+  if (ctx.recentRecipes?.length) {
+    parts.push('');
+    parts.push('ALREADY GENERATED (do NOT repeat these — create something distinctly different in concept, technique, and flavour architecture):');
+    for (const title of ctx.recentRecipes) {
+      parts.push(`  × ${title}`);
+    }
   }
 
+  // Variety seed — ensures different output each generation even for identical inputs
+  parts.push(`Generation seed: ${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
   return parts.join('\n');
 }
 
@@ -67,32 +83,66 @@ export async function assemblePrompt(
   requestContext: RequestContext,
   complexityMode: ComplexityMode = 'kitchen'
 ): Promise<AssembledPrompt> {
+  // Resolve fingerprint — try UUID first, fall back to slug
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fingerprintId);
+  const fingerprintPromise = isUUID
+    ? getFingerprint(fingerprintId)
+    : getFingerprintBySlug(fingerprintId);
+
   // Fetch layers 1-3 in parallel
   const [systemCore, fingerprint, brain] = await Promise.all([
     Promise.resolve(getSystemCore()),
-    getFingerprint(fingerprintId),
+    fingerprintPromise,
     getCachedBrain(userId),
   ]);
 
-  // Build Layer 2 (Fingerprint)
-  const fingerprintLayer: PromptLayer = fingerprint
-    ? {
-        text: fingerprint.promptText,
-        version: fingerprint.version,
-        tokenCount: estimateTokens(fingerprint.promptText),
-      }
-    : { text: '', version: 0, tokenCount: 0 };
+  // Build Layer 2 (Fingerprint) — use layered assembly if full_profile exists
+  let fingerprintLayer: PromptLayer;
+
+  if (fingerprint?.fullProfile && fingerprint.fullProfile.identity_core) {
+    const fpContext: FingerprintRecipeContext = {
+      techniques: requestContext.techniques,
+      ingredients: requestContext.ingredients,
+      season: requestContext.season,
+      region: requestContext.region,
+      needsVoice: true,
+    };
+    const assembled = assembleFingerprint(fingerprint.fullProfile, fpContext);
+    fingerprintLayer = {
+      text: assembled.text,
+      version: fingerprint.version,
+      tokenCount: assembled.tokenEstimate,
+    };
+  } else if (fingerprint) {
+    const assembled = assembleFlatFingerprint(fingerprint.promptText);
+    fingerprintLayer = {
+      text: assembled.text,
+      version: fingerprint.version,
+      tokenCount: assembled.tokenEstimate,
+    };
+  } else {
+    fingerprintLayer = { text: '', version: 0, tokenCount: 0 };
+  }
 
   // Build Layer 3 (Chef Brain)
   const brainLayer: PromptLayer = brain
-    ? {
-        text: brain.promptText,
-        version: brain.version,
-        tokenCount: estimateTokens(brain.promptText),
-      }
+    ? { text: brain.promptText, version: brain.version, tokenCount: estimateTokens(brain.promptText) }
     : { text: '', version: 0, tokenCount: 0 };
 
-  // Build Layer 4 (Request Context)
+  // Build Layer 4 (Decision Lock) — from fingerprint's decision_lock questions
+  const decisionLockQuestions = fingerprint?.fullProfile?.decision_lock;
+  const decisionLock = assembleDecisionLock(decisionLockQuestions, requestContext.dishDescription);
+  const decisionLockLayer: PromptLayer = {
+    text: decisionLock.text,
+    version: 1,
+    tokenCount: decisionLock.tokenEstimate,
+  };
+
+  if (decisionLockLayer.text) {
+    console.log('[MISE] Decision Lock:', decisionLock.questionCount, 'questions |', decisionLock.tokenEstimate, 'tokens');
+  }
+
+  // Build Layer 5 (Request Context)
   const requestText = buildRequestContext(requestContext);
   const requestLayer: PromptLayer = {
     text: requestText,
@@ -106,16 +156,19 @@ export async function assemblePrompt(
   if (brainLayer.text) systemParts.push(brainLayer.text);
   systemParts.push(COMPLEXITY_INSTRUCTIONS[complexityMode]);
 
-  const systemPrompt = systemParts.join('\n\n');
-  const userMessage = requestLayer.text;
+  // User message: Decision Lock (if present) + Request Context
+  const userMessage = decisionLockLayer.text
+    ? decisionLockLayer.text + '\n\n' + requestLayer.text
+    : requestLayer.text;
 
   return {
-    systemPrompt,
+    systemPrompt: systemParts.join('\n\n'),
     userMessage,
     layers: {
       systemCore,
       fingerprint: fingerprintLayer,
       chefBrain: brainLayer,
+      decisionLock: decisionLockLayer,
       requestContext: requestLayer,
     },
   };
@@ -131,13 +184,7 @@ export async function generateRecipe(
   requestContext: RequestContext,
   complexityMode: ComplexityMode = 'kitchen'
 ): Promise<ReadableStream<string>> {
-  const assembled = await assemblePrompt(
-    userId,
-    fingerprintId,
-    requestContext,
-    complexityMode
-  );
-
+  const assembled = await assemblePrompt(userId, fingerprintId, requestContext, complexityMode);
   const provider = await createAIProvider();
   return provider.generateRecipe(assembled.systemPrompt, assembled.userMessage);
 }
@@ -153,33 +200,19 @@ export function buildPromptSnapshot(
   fingerprintName: string,
   userId: string
 ): PromptSnapshot {
-  const { systemCore, fingerprint, chefBrain, requestContext } = assembled.layers;
-
-  const totalInputTokens =
-    systemCore.tokenCount +
-    fingerprint.tokenCount +
-    chefBrain.tokenCount +
-    requestContext.tokenCount;
-
-  // Cost estimate: Sonnet pricing ~$3/M input, ~$15/M output
-  const estimatedCost =
-    (totalInputTokens / 1_000_000) * 3 + (outputTokens / 1_000_000) * 15;
+  const { systemCore, fingerprint, chefBrain, decisionLock, requestContext } = assembled.layers;
+  const totalInputTokens = systemCore.tokenCount + fingerprint.tokenCount + chefBrain.tokenCount + decisionLock.tokenCount + requestContext.tokenCount;
+  const estimatedCost = (totalInputTokens / 1_000_000) * 3 + (outputTokens / 1_000_000) * 15;
 
   return {
     systemCore,
-    fingerprint: {
-      ...fingerprint,
-      fingerprintId,
-      fingerprintName,
-    },
-    chefBrain: {
-      ...chefBrain,
-      userId,
-    },
+    fingerprint: { ...fingerprint, fingerprintId, fingerprintName },
+    chefBrain: { ...chefBrain, userId },
+    decisionLock,
     requestContext,
     totalInputTokens,
     totalOutputTokens: outputTokens,
-    estimatedCost: Math.round(estimatedCost * 1_000_000) / 1_000_000, // 6 decimal places
+    estimatedCost: Math.round(estimatedCost * 1_000_000) / 1_000_000,
     assembledAt: new Date().toISOString(),
   };
 }

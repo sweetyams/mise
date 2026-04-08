@@ -24,3 +24,86 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ===== Editorial Design System Tokens ===== */
+
+:root {
+  --ed-bg: #FFFFFF;
+  --ed-bg-warm: #F7F5F2;
+  --ed-text-primary: #111111;
+  --ed-text-secondary: #555555;
+  --ed-text-muted: #999999;
+  --ed-border: #E0DDD8;
+  --ed-accent: #C4400A;
+  --ed-font: var(--font-instrument-sans, 'Instrument Sans'), sans-serif;
+  --ed-font-serif: var(--font-instrument-serif, 'Instrument Serif'), serif;
+  --ed-spacing-section: 64px;
+  --ed-spacing-subsection: 24px;
+  --ed-content-width: 920px;
+  --ed-fs-micro: 10px;
+  --ed-fs-small: 12px;
+  --ed-fs-body: 14px;
+  --ed-fs-med: 16px;
+  --ed-fs-lg: 20px;
+  --ed-fs-xl: 28px;
+  --ed-fs-hero: clamp(40px, 6vw, 68px);
+}
+
+/* Editorial scoping class */
+.editorial {
+  font-family: var(--ed-font);
+  color: var(--ed-text-primary);
+  background: var(--ed-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+.editorial * {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Scroll-triggered fade-up animation */
+.ed-reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+.ed-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Reduced motion overrides */
+@media (prefers-reduced-motion: reduce) {
+  .ed-reveal {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .editorial * {
+    transition-duration: 0ms !important;
+  }
+}
+
+/* ===== Editorial Button System ===== */
+
+.editorial .btn {
+  font-family: var(--ed-font);
+  font-size: var(--ed-fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  border: 1px solid var(--ed-border);
+  background: transparent;
+  color: var(--ed-text-secondary);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.editorial .btn:hover { border-color: var(--ed-text-primary); color: var(--ed-text-primary); }
+.editorial .btn-primary { background: var(--ed-text-primary); border-color: var(--ed-text-primary); color: var(--ed-bg); }
+.editorial .btn-primary:hover { background: #333; }
+.editorial .btn-danger { color: #B03A2A; border-color: #DDD0CE; }
+.editorial .btn-danger:hover { border-color: #B03A2A; }

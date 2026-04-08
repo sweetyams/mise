@@ -52,6 +52,20 @@ export function exportRecipeAsPdf(
     ? `<p style="color:#666;font-size:14px;">Servings: ${options.servings}</p>`
     : '';
 
+  const decisionLockHtml =
+    recipe.decision_lock_answers && recipe.decision_lock_answers.length > 0
+      ? `<div style="margin-top:24px;padding:16px;background:#f9f9f9;border-radius:8px;">
+        <h2 style="font-size:18px;margin:0 0 12px;">Decision Lock</h2>
+        ${recipe.decision_lock_answers
+          .map(
+            (dla) =>
+              `<p style="font-size:13px;margin:8px 0 2px;"><strong>Q:</strong> ${escapeHtml(dla.question)}</p>
+               <p style="font-size:13px;margin:2px 0 8px;color:#444;"><strong>A:</strong> ${escapeHtml(dla.answer)}</p>`
+          )
+          .join('')}
+      </div>`
+      : '';
+
   const componentsHtml = recipe.components
     .map((comp) => renderComponentHtml(comp))
     .join('');
@@ -59,9 +73,9 @@ export function exportRecipeAsPdf(
   const thinkingHtml = recipe.thinking
     ? `<div style="margin-top:24px;padding:16px;background:#f9f9f9;border-radius:8px;">
         <h2 style="font-size:18px;margin:0 0 8px;">The Thinking</h2>
-        <p style="font-size:13px;margin:4px 0;"><strong>Approach:</strong> ${escapeHtml(recipe.thinking.approach)}</p>
-        <p style="font-size:13px;margin:4px 0;"><strong>Architecture:</strong> ${escapeHtml(recipe.thinking.architecture)}</p>
-        <p style="font-size:13px;margin:4px 0;"><strong>Pattern:</strong> ${escapeHtml(recipe.thinking.pattern)}</p>
+        <p style="font-size:13px;margin:4px 0;"><strong>Approach:</strong> ${escapeHtml(recipe.thinking.origin || recipe.thinking.approach)}</p>
+        <p style="font-size:13px;margin:4px 0;"><strong>Architecture:</strong> ${escapeHtml(recipe.thinking.architecture_logic || recipe.thinking.architecture)}</p>
+        <p style="font-size:13px;margin:4px 0;"><strong>Pattern:</strong> ${escapeHtml(recipe.thinking.the_pattern || recipe.thinking.pattern)}</p>
       </div>`
     : '';
 
@@ -87,6 +101,7 @@ export function exportRecipeAsPdf(
     ${escapeHtml(recipe.intent.occasion)} · ${escapeHtml(recipe.intent.mood)} · ${recipe.intent.time} min · ${escapeHtml(recipe.intent.effort)}
   </p>
   ${servingsNote}
+  ${decisionLockHtml}
   ${componentsHtml}
   ${thinkingHtml}
 </body>
@@ -127,7 +142,8 @@ export function exportRecipeAsMarkdown(
 // ---------------------------------------------------------------------------
 
 function escapeHtml(text: string): string {
-  return text
+  if (!text) return '';
+  return String(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -135,26 +151,39 @@ function escapeHtml(text: string): string {
 }
 
 function renderComponentHtml(comp: Component): string {
-  const ingredientsList = comp.ingredients
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const c = comp as any;
+  const ingredients = c.ingredients || [];
+  const steps = c.steps || [];
+  const donenessCues: string[] = Array.isArray(c.doneness_cues) ? c.doneness_cues : [];
+  const donenessDesc: string = c.doneness_description || '';
+
+  const ingredientsList = ingredients
     .map(
-      (ing) =>
-        `<li>${ing.amount} ${escapeHtml(ing.unit)} ${escapeHtml(ing.name)}${ing.prep ? ` <em>(${escapeHtml(ing.prep)})</em>` : ''}</li>`
+      (ing: any) =>
+        `<li>${ing.amount || ''} ${escapeHtml(ing.unit)} ${escapeHtml(ing.name)}${ing.preparation ? ` <em>(${escapeHtml(ing.preparation)})</em>` : ing.prep ? ` <em>(${escapeHtml(ing.prep)})</em>` : ''}</li>`
     )
     .join('');
 
-  const stepsList = comp.steps
-    .map((step) => {
+  const stepsList = steps
+    .map((step: any) => {
       let html = `<li>${escapeHtml(step.instruction)}`;
-      if (step.timing) html += ` <em>(${escapeHtml(step.timing)})</em>`;
+      if (typeof step.timing === 'string' && step.timing) {
+        html += ` <em>(${escapeHtml(step.timing)})</em>`;
+      } else if (step.timing?.duration_minutes > 0) {
+        html += ` <em>(${step.timing.duration_minutes} min)</em>`;
+      }
       html += '</li>';
       return html;
     })
     .join('');
 
-  const donenessCues =
-    comp.doneness_cues.length > 0
-      ? `<p style="font-size:13px;color:#555;margin-top:8px;"><strong>Doneness cues:</strong> ${comp.doneness_cues.map(escapeHtml).join('; ')}</p>`
+  const donenessHtml = donenessCues.length > 0
+    ? `<p style="font-size:13px;color:#555;margin-top:8px;"><strong>Doneness cues:</strong> ${donenessCues.map(escapeHtml).join('; ')}</p>`
+    : donenessDesc
+      ? `<p style="font-size:13px;color:#555;margin-top:8px;"><strong>Doneness:</strong> ${escapeHtml(donenessDesc)}</p>`
       : '';
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   return `
   <h2>${escapeHtml(comp.name)} <span style="font-weight:normal;color:#888;font-size:14px;">(${escapeHtml(comp.role)})</span></h2>
@@ -163,5 +192,5 @@ function renderComponentHtml(comp: Component): string {
   <ul>${ingredientsList}</ul>
   <h3>Steps</h3>
   <ol>${stepsList}</ol>
-  ${donenessCues}`;
+  ${donenessHtml}`;
 }

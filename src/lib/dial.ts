@@ -9,7 +9,7 @@
 
 import { createServiceClient } from '@/lib/supabase/server';
 import { createAIProvider } from '@/lib/ai-provider';
-import { RecipeSchema } from '@/lib/zod-schemas';
+import { parseRecipeMarkdown } from '@/lib/recipe-parser';
 import { createVersion, getVersion, type RecipeVersion } from '@/lib/version-store';
 import type { Recipe, DialDirection, PromptSnapshot } from '@/lib/types/recipe';
 import { assemblePrompt, buildPromptSnapshot } from '@/lib/prompt-assembler';
@@ -37,17 +37,19 @@ const DIAL_LABELS: Record<DialDirection, string> = {
   funkier: 'Funkier',
   different_region: 'Different Region',
   riff_mode: 'Riff Mode',
+  custom_prompt: 'Custom',
 };
 
 const DIAL_INSTRUCTIONS: Record<DialDirection, string> = {
-  more_acid: 'Evolve this recipe to be more acid-forward. Add or increase acid elements, brighten the dish, and adjust the balance accordingly. Explain what changed and why.',
-  more_heat: 'Evolve this recipe to bring more heat. Increase spice levels, add heat sources, and adjust the balance. Explain what changed and why.',
-  more_umami: 'Evolve this recipe to be more umami-rich. Deepen savoury elements, add umami sources, and adjust the balance. Explain what changed and why.',
-  smokier: 'Evolve this recipe to be smokier. Introduce or increase smoke elements through technique or ingredients. Explain what changed and why.',
-  lighter: 'Evolve this recipe to be lighter. Reduce richness, brighten flavours, and make the dish feel more delicate. Explain what changed and why.',
-  funkier: 'Evolve this recipe to be funkier. Add fermented, aged, or funky elements. Push the flavour into more adventurous territory. Explain what changed and why.',
-  different_region: 'Reimagine this recipe through a different regional culinary lens. Keep the core concept but shift the flavour profile, techniques, and ingredients to a different cuisine. Explain the regional shift and why.',
-  riff_mode: 'Take this recipe in a completely unexpected direction. Riff on the core idea — change techniques, swap flavour profiles, surprise the cook. Explain your creative reasoning.',
+  more_acid: 'DRAMATICALLY increase the acid presence in this recipe. Don\'t just add a squeeze of lemon — restructure the dish around acid. Add a new acid component (pickled element, vinegar reduction, citrus dressing, fermented condiment). Change at least 2-3 ingredients. The acid should be the FIRST thing you taste. This should feel like a fundamentally different dish, not a minor tweak.',
+  more_heat: 'DRAMATICALLY increase the heat in this recipe. Don\'t just add more chilli — introduce a new heat source (fresh chillies, chilli oil, Sichuan peppercorn, horseradish, mustard, wasabi). Change the cooking technique to amplify heat (charring, blooming spices in oil). Replace at least 2 ingredients with spicier alternatives. The heat should be unmistakable and structural, not an afterthought.',
+  more_umami: 'DRAMATICALLY deepen the umami in this recipe. Add at least 2 new umami sources (miso, fish sauce, dried mushrooms, Parmesan, anchovies, soy sauce, tomato paste, Worcestershire). Change the cooking technique to build umami (longer browning, caramelisation, reduction). This should taste profoundly savoury — almost meaty even if vegetarian.',
+  smokier: 'DRAMATICALLY increase the smoke character. Don\'t just add smoked paprika — introduce actual smoke technique (charring vegetables directly over flame, using smoked salt, smoked butter, chipotle, lapsang souchong tea, smoked fish). Replace at least 2 ingredients with smoked versions. The smoke should be a defining characteristic of the dish.',
+  lighter: 'DRAMATICALLY lighten this recipe. Strip out heavy fats, reduce portions of rich ingredients by half or more. Replace cream with yoghurt, butter with olive oil, heavy proteins with lighter ones. Add raw elements, fresh herbs, citrus. Change the cooking technique (steam instead of fry, poach instead of braise). The dish should feel bright, clean, and energising.',
+  funkier: 'DRAMATICALLY increase the funk factor. Add fermented, aged, or cultured elements — blue cheese, kimchi, fish sauce, miso, fermented black beans, aged vinegar, funky cheese, fermented chilli paste. Push into territory that makes people pause and then crave more. Replace at least 2-3 ingredients with their fermented or aged equivalents.',
+  different_region: 'COMPLETELY reimagine this dish through a different regional lens. If it\'s European, make it Southeast Asian. If it\'s Asian, make it Latin American. Change the spice profile entirely, swap the fat source, change the acid, replace the aromatics. Keep only the core protein or vegetable concept — everything else changes. Name the new regional direction explicitly.',
+  riff_mode: 'COMPLETELY reinvent this recipe. Keep the spirit but change everything else. Different cooking technique, different flavour profile, different texture approach. If it was braised, make it raw. If it was rich, make it austere. If it was complex, make it three-ingredient simple. Surprise the cook with something they\'d never have thought of. This should feel like a different chef made it.',
+  custom_prompt: '', // Filled dynamically from user input
 };
 
 // ---------------------------------------------------------------------------
@@ -58,7 +60,8 @@ export async function dialRecipe(
   recipeId: string,
   direction: DialDirection,
   userId: string,
-  fromVersionId?: string
+  fromVersionId?: string,
+  customPrompt?: string
 ): Promise<DialResult | { error: string }> {
   const supabase = createServiceClient();
 
@@ -99,19 +102,37 @@ export async function dialRecipe(
     sourceRecipe.complexityMode
   );
 
+  const directionLabel = direction === 'custom_prompt' ? 'Custom Evolution' : DIAL_LABELS[direction];
+  const directionInstruction = direction === 'custom_prompt' && customPrompt
+    ? `The cook wants you to modify this recipe based on their specific request:\n\n"${customPrompt}"\n\nApply their request thoroughly. Make the changes DRAMATIC and OBVIOUS — not subtle tweaks. Change ingredients, techniques, and flavour profile as needed to fully honour their request.`
+    : DIAL_INSTRUCTIONS[direction];
+
   const dialPrompt = [
-    `You are evolving an existing recipe using The Dial. Direction: ${DIAL_LABELS[direction]}.`,
+    `You are evolving an existing recipe using The Dial. Direction: ${directionLabel}.`,
     '',
-    DIAL_INSTRUCTIONS[direction],
+    directionInstruction,
     '',
-    'Current recipe JSON:',
-    JSON.stringify(sourceRecipe, null, 2),
+    'CURRENT RECIPE TO EVOLVE:',
     '',
-    'Generate a complete new Recipe JSON object with the evolution applied.',
-    'Return ONLY valid JSON matching the Recipe schema. Keep the same id and increment the version number.',
+    `Title: ${sourceRecipe.title}`,
+    `Components: ${sourceRecipe.components?.map((c: any) => `${c.name} (${c.role || 'component'})`).join(', ') || 'none'}`,
+    '',
+    'Current ingredients:',
+    ...(sourceRecipe.components?.flatMap((c: any) => 
+      (c.ingredients || []).map((i: any) => `  - ${i.amount || ''} ${i.unit || ''} ${i.name || ''}`.trim())
+    ) || []),
+    '',
+    `Current flavour direction: ${(sourceRecipe.flavour as any)?.dominant_element || (sourceRecipe.flavour as any)?.dominant || 'not specified'}`,
+    `Current flavour profile: ${(sourceRecipe.flavour as any)?.flavour_profile?.join(', ') || (sourceRecipe.flavour as any)?.profile?.join(', ') || 'not specified'}`,
+    '',
+    'IMPORTANT: Generate a COMPLETE new recipe in the standard markdown format.',
+    'The changes should be DRAMATIC and OBVIOUS — not subtle tweaks.',
+    'A cook should immediately see and taste the difference.',
+    'Change at least 2-3 ingredients and adjust the technique.',
   ].join('\n');
 
   // 3. Call AI Provider
+  console.log('[MISE] Dial: direction=', direction, 'recipe=', recipeId);
   const provider = await createAIProvider();
   let rawOutput = '';
 
@@ -131,16 +152,45 @@ export async function dialRecipe(
     return { error: 'AI generation failed. Please try again.' };
   }
 
-  // 4. Parse and validate with Zod
+  console.log('[MISE] Dial: AI output length=', rawOutput.length);
+
+  // 4. Parse markdown into structured recipe data
   let newRecipe: Recipe;
   try {
-    const parsed = JSON.parse(rawOutput);
-    const result = RecipeSchema.safeParse(parsed);
-    if (!result.success) {
-      return { error: `Validation failed: ${result.error.issues.map((i) => i.message).join(', ')}` };
+    const { recipe: parsedRecipe, warnings } = parseRecipeMarkdown(rawOutput);
+    if (warnings.length > 0) {
+      console.warn('[MISE] Dial parse warnings:', warnings);
     }
-    newRecipe = result.data as Recipe;
-  } catch {
+
+    // Map parsed thinking fields to DB schema
+    const mappedThinking = {
+      origin: (parsedRecipe.thinking as any).origin || parsedRecipe.thinking.approach || '',
+      architecture_logic: (parsedRecipe.thinking as any).architecture_logic || parsedRecipe.thinking.architecture || '',
+      the_pattern: (parsedRecipe.thinking as any).the_pattern || parsedRecipe.thinking.pattern || '',
+      fingerprint_note: (parsedRecipe.thinking as any).fingerprint_note || '',
+    };
+
+    newRecipe = {
+      ...sourceRecipe,
+      title: parsedRecipe.title || sourceRecipe.title,
+      version: (sourceRecipe.version ?? 0) + 1,
+      intent: {
+        ...sourceRecipe.intent,
+        effort: (parsedRecipe.intent?.effort as any) || sourceRecipe.intent?.effort || 'medium',
+        feeds: parsedRecipe.intent?.feeds || sourceRecipe.intent?.feeds || 4,
+        total_time_minutes: parsedRecipe.intent?.total_time_minutes || sourceRecipe.intent?.total_time_minutes || 0,
+        active_time_minutes: parsedRecipe.intent?.active_time_minutes || sourceRecipe.intent?.active_time_minutes || 0,
+        prep_ahead_notes: parsedRecipe.intent?.prep_ahead_notes || sourceRecipe.intent?.prep_ahead_notes || '',
+        can_prep_ahead: !!(parsedRecipe.intent?.prep_ahead_notes || sourceRecipe.intent?.can_prep_ahead),
+      },
+      flavour: parsedRecipe.flavour as any,
+      components: parsedRecipe.components as any,
+      timeline: { total_duration_minutes: 0, serve_time: null, stages: parsedRecipe.timeline.map((s) => ({ label: s.name, duration_minutes: s.duration, is_passive: s.parallel, advance_prep: false, component_ids: [], offset_from_start: 0 })), parallel_possible: false, parallel_notes: '', critical_path: [] },
+      variations: parsedRecipe.variations as any,
+      thinking: mappedThinking as any,
+    } as Recipe;
+  } catch (parseErr) {
+    console.error('[MISE] Dial parse error:', parseErr);
     return { error: 'Failed to parse AI response. Please try again.' };
   }
 
@@ -163,6 +213,26 @@ export async function dialRecipe(
 
   if ('error' in versionResult) {
     return { error: versionResult.error };
+  }
+
+  // 6b. Update the main recipe row with the new data
+  const { error: updateError } = await supabase
+    .from('recipes')
+    .update({
+      title: newRecipe.title,
+      intent: newRecipe.intent,
+      flavour: newRecipe.flavour,
+      components: newRecipe.components,
+      timeline: newRecipe.timeline,
+      variations: newRecipe.variations,
+      thinking: newRecipe.thinking,
+      version: newRecipe.version,
+    })
+    .eq('id', recipeId);
+
+  if (updateError) {
+    console.warn('[MISE] Dial: Failed to update main recipe row:', updateError.message);
+    // Non-fatal — version was still created
   }
 
   // 7. Build changes summary
@@ -251,23 +321,45 @@ function rowToRecipe(row: any): Recipe {
   return {
     id: row.id,
     title: row.title,
+    subtitle: row.subtitle || '',
+    fingerprint_id: row.fingerprint_id ?? '',
+    fingerprint_version: row.fingerprint_version ?? 0,
+    complexity_mode: row.complexity_mode ?? 'kitchen',
+    version: row.version ?? 1,
+    parent_id: row.parent_id ?? null,
+    root_id: row.root_id ?? null,
+    created_at: row.created_at ?? '',
+    generated_by: row.generated_by ?? '',
+    chef_brain_version: row.chef_brain_version ?? 0,
+    intent: row.intent ?? {},
+    flavour: row.flavour ?? {},
+    components: row.components ?? [],
+    timeline: Array.isArray(row.timeline)
+      ? { total_duration_minutes: 0, serve_time: null, stages: row.timeline.map((s: any) => ({ label: s.name || s.label || '', duration_minutes: s.duration || s.duration_minutes || 0, is_passive: s.parallel || s.is_passive || false, advance_prep: s.advance_prep || false, component_ids: [], offset_from_start: 0 })), parallel_possible: false, parallel_notes: '', critical_path: [] }
+      : (row.timeline ?? { total_duration_minutes: 0, serve_time: null, stages: [], parallel_possible: false, parallel_notes: '', critical_path: [] }),
+    scaling: row.scaling ?? { base_serves: 4, min_serves: 1, max_serves: 12, non_linear_notes: [], equipment_notes: '', batch_notes: '' },
+    variations: row.variations ?? {},
+    relationships: row.related ?? {},
+    thinking: {
+      origin: row.thinking?.origin || row.thinking?.approach || '',
+      architecture_logic: row.thinking?.architecture_logic || row.thinking?.architecture || '',
+      the_pattern: row.thinking?.the_pattern || row.thinking?.pattern || '',
+      fingerprint_note: row.thinking?.fingerprint_note || '',
+    },
+    decision_lock_answers: row.decision_lock_answers ?? undefined,
+    shopping_list: row.shopping_list ?? { grouped_by_section: [], pantry_assumed: [], the_one_thing: '' },
+    development_log: row.development_log ?? [],
+    meta: row.meta ?? { is_public: false, public_slug: '', share_card_generated: false, times_generated: 0, times_cooked: 0, tags: [], source_prompt: '', token_usage: { input_tokens: 0, output_tokens: 0, fingerprint_layers_loaded: [] }, language: 'en' },
+    // Legacy compat fields
     fingerprint: row.fingerprint_id ?? '',
-    version: row.version,
-    intent: row.intent,
-    flavour: row.flavour,
-    components: row.components,
-    timeline: row.timeline,
-    variations: row.variations,
-    related: row.related,
-    thinking: row.thinking,
-    promptSnapshot: row.prompt_used,
-    complexityMode: row.complexity_mode,
-    cooked: row.cooked,
-    devNotes: row.dev_notes,
+    complexityMode: row.complexity_mode ?? 'kitchen',
+    promptSnapshot: row.prompt_used ?? {},
+    cooked: row.cooked ?? false,
+    devNotes: row.dev_notes ?? null,
     tags: row.tags ?? [],
-    isPublic: row.is_public,
+    isPublic: row.is_public ?? false,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
+  } as any;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */

@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sumac Halva Cookies</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --white:    #FFFFFF;
+  --off:      #F7F5F2;
+  --ink:      #111111;
+  --mid:      #555555;
+  --light:    #999999;
+  --rule:     #E0DDD8;
+  --accent:   #C4400A;
+  --fs-micro: 10px;
+  --fs-small: 12px;
+  --fs-body:  14px;
+  --fs-med:   16px;
+  --fs-lg:    20px;
+  --fs-xl:    28px;
+  --fs-hero:  clamp(40px, 6vw, 68px);
+}
+
+html { font-size: 16px; }
+
+body {
+  background: var(--white);
+  color: var(--ink);
+  font-family: 'Instrument Sans', sans-serif;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── LAYOUT ── */
+.page {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 40px 100px;
+}
+
+/* ── HEADER ── */
+.header {
+  padding: 56px 0 0;
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: 0;
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.label-grey {
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--light);
+}
+
+h1 {
+  font-family: 'Instrument Serif', serif;
+  font-size: var(--fs-hero);
+  font-weight: 400;
+  line-height: 1.0;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin-bottom: 16px;
+}
+
+h1 em {
+  font-style: italic;
+}
+
+.subtitle {
+  font-size: var(--fs-med);
+  color: var(--mid);
+  font-weight: 400;
+  line-height: 1.5;
+  max-width: 540px;
+  margin-bottom: 32px;
+}
+
+/* stats bar */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, auto) 1fr;
+  gap: 0;
+  padding: 18px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.stat {
+  padding-right: 32px;
+  border-right: 1px solid var(--rule);
+  margin-right: 32px;
+}
+
+.stat:last-of-type {
+  border-right: none;
+  margin-right: 0;
+}
+
+.stat-label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--light);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: var(--fs-body);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* ── TWO-COL INTRO ── */
+.intro {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 0;
+}
+
+.intro-block {
+  padding: 40px 48px 40px 0;
+  border-right: 1px solid var(--rule);
+}
+
+.intro-block:last-child {
+  border-right: none;
+  padding: 40px 0 40px 48px;
+}
+
+.intro-title {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--light);
+  display: block;
+  margin-bottom: 14px;
+}
+
+.intro-text {
+  font-size: var(--fs-body);
+  line-height: 1.75;
+  color: var(--mid);
+}
+
+.intro-text strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* flavour tags */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.tag {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  border: 1px solid var(--rule);
+  color: var(--mid);
+  background: none;
+}
+
+.tag.accent {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── COMPONENT ── */
+.component {
+  border-bottom: 1px solid var(--rule);
+}
+
+.component-header {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: baseline;
+  gap: 20px;
+  padding: 32px 0 28px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.component-num {
+  font-family: 'Instrument Serif', serif;
+  font-size: 32px;
+  font-style: italic;
+  color: var(--rule);
+  line-height: 1;
+}
+
+.component-name {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.component-prep {
+  font-size: var(--fs-small);
+  color: var(--light);
+  text-align: right;
+  line-height: 1.5;
+}
+
+/* ingredient + method grid */
+.component-body {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 0;
+}
+
+.ingredients-col {
+  border-right: 1px solid var(--rule);
+  padding: 28px 40px 28px 0;
+}
+
+.col-head {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--light);
+  display: block;
+  margin-bottom: 20px;
+}
+
+.ing {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: start;
+}
+
+.ing:last-child { border-bottom: none; }
+
+.ing-amt {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--ink);
+  padding-top: 1px;
+  white-space: nowrap;
+}
+
+.ing-info {}
+
+.ing-name {
+  font-size: var(--fs-body);
+  color: var(--ink);
+  line-height: 1.4;
+  display: block;
+}
+
+.ing-fn {
+  font-size: 11px;
+  color: var(--light);
+  margin-top: 2px;
+  display: block;
+  font-style: italic;
+}
+
+/* method */
+.method-col {
+  padding: 28px 0 28px 40px;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.step:last-child { border-bottom: none; }
+
+.step-n {
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--light);
+  padding-top: 1px;
+}
+
+.step-body {}
+
+.step-text {
+  font-size: var(--fs-body);
+  line-height: 1.65;
+  color: var(--ink);
+  margin-bottom: 5px;
+}
+
+.step-time {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  margin-left: 4px;
+}
+
+.step-why {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--light);
+  font-style: italic;
+}
+
+/* doneness */
+.doneness {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  border-top: 1px solid var(--rule);
+}
+
+.doneness-label-col {
+  padding: 18px 40px 18px 0;
+  border-right: 1px solid var(--rule);
+  display: flex;
+  align-items: center;
+}
+
+.doneness-cues-col {
+  padding: 18px 0 18px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.cue {
+  font-size: var(--fs-small);
+  color: var(--mid);
+  line-height: 1.5;
+  padding-left: 14px;
+  position: relative;
+}
+
+.cue::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--light);
+}
+
+/* ── BAKE BAR ── */
+.bake-bar {
+  border-top: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  margin-bottom: 0;
+}
+
+.bake-cell {
+  padding: 24px 28px;
+  border-right: 1px solid var(--rule);
+}
+
+.bake-cell:last-child { border-right: none; }
+
+.bake-cell-label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--light);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.bake-cell-value {
+  font-family: 'Instrument Serif', serif;
+  font-size: 28px;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.bake-cell-value.accent { color: var(--accent); }
+
+/* ── VARIATIONS ── */
+.variations-section {
+  padding: 40px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.variations-head {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 0;
+  align-items: start;
+}
+
+.variations-label {
+  padding-right: 40px;
+  border-right: 1px solid var(--rule);
+}
+
+.variations-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding-left: 40px;
+}
+
+.variation {
+  padding: 0 32px 0 0;
+  border-right: 1px solid var(--rule);
+}
+
+.variation:last-child {
+  border-right: none;
+  padding-right: 0;
+  padding-left: 32px;
+}
+
+.var-name {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 8px;
+  display: block;
+}
+
+.var-desc {
+  font-size: var(--fs-small);
+  color: var(--mid);
+  line-height: 1.65;
+}
+
+/* ── FOOTER ── */
+.footer {
+  padding: 32px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.footer-brand {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--light);
+}
+
+.footer-brand span { color: var(--ink); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 700px) {
+  .page { padding: 0 20px 60px; }
+  .intro { grid-template-columns: 1fr; }
+  .intro-block { padding: 28px 0; border-right: none; border-bottom: 1px solid var(--rule); }
+  .intro-block:last-child { border-bottom: none; padding-left: 0; }
+  .component-body { grid-template-columns: 1fr; }
+  .ingredients-col { border-right: none; border-bottom: 1px solid var(--rule); padding: 28px 0; }
+  .method-col { padding: 28px 0; }
+  .doneness { grid-template-columns: 1fr; }
+  .doneness-label-col { border-right: none; border-bottom: 1px solid var(--rule); }
+  .doneness-cues-col { padding-left: 0; }
+  .bake-bar { grid-template-columns: 1fr 1fr; }
+  .stats { grid-template-columns: 1fr 1fr; gap: 16px; }
+  .stat { border-right: none; margin-right: 0; padding-right: 0; }
+  .variations-head { grid-template-columns: 1fr; }
+  .variations-label { border-right: none; padding-right: 0; border-bottom: 1px solid var(--rule); padding-bottom: 24px; }
+  .variations-grid { padding-left: 0; padding-top: 24px; grid-template-columns: 1fr; }
+  .variation { border-right: none; padding: 0 0 20px; }
+  .variation:last-child { padding-left: 0; padding-bottom: 0; }
+  .header-top { flex-direction: column; gap: 12px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-top">
+      <span class="label">Ottolenghi Fingerprint</span>
+      <span class="label-grey">Dessert · Baking</span>
+    </div>
+
+    <h1>Sumac <em>Halva</em> Cookies<br>with Verjuice Glaze</h1>
+
+    <p class="subtitle">
+      Crumbled halva folded through a sumac-spiked dough. The verjuice glaze does what acid always does — makes the richness feel deliberate.
+    </p>
+
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-label">Yield</span>
+        <span class="stat-value">18–22 cookies</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Active</span>
+        <span class="stat-value">20 min</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Total</span>
+        <span class="stat-value">45 min</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Ahead</span>
+        <span class="stat-value">Dough 2 days</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- INTRO -->
+  <div class="intro">
+    <div class="intro-block">
+      <span class="intro-title">The Thinking</span>
+      <p class="intro-text">
+        <strong>Architecture:</strong> Tahini in the halva becomes the primary fat. Sumac acts as both flavour and colour, creating the signature Middle Eastern balance between rich and bright. The cookie structure carries the confection, not the other way around.
+      </p>
+      <p class="intro-text" style="margin-top: 12px;">
+        <strong>Pattern:</strong> How to build dessert around a confection. Time the glaze — verjuice at the end resolves the sweetness the same way acid resolves fat in a braise.
+      </p>
+    </div>
+
+    <div class="intro-block">
+      <span class="intro-title">Flavour Architecture</span>
+      <p class="intro-text">Fat-led with strong acid counterpoint. The halva's richness is structural — sumac cuts through rather than complementing. Nigella seeds add pop and visual punctuation.</p>
+      <div class="tags">
+        <span class="tag accent">fat-led · acid counterpoint</span>
+        <span class="tag">nutty</span>
+        <span class="tag">tart</span>
+        <span class="tag">floral</span>
+        <span class="tag">lightly bitter</span>
+        <span class="tag">aromatic</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BAKE BAR -->
+  <div class="bake-bar">
+    <div class="bake-cell">
+      <span class="bake-cell-label">Temperature</span>
+      <div class="bake-cell-value accent">180°C</div>
+    </div>
+    <div class="bake-cell">
+      <span class="bake-cell-label">Bake time</span>
+      <div class="bake-cell-value">12–14 min</div>
+    </div>
+    <div class="bake-cell">
+      <span class="bake-cell-label">Position</span>
+      <div class="bake-cell-value">Middle</div>
+    </div>
+    <div class="bake-cell">
+      <span class="bake-cell-label">Spacing</span>
+      <div class="bake-cell-value">4 cm</div>
+    </div>
+  </div>
+
+  <!-- COMPONENT 1 -->
+  <div class="component">
+    <div class="component-header">
+      <span class="component-num">1</span>
+      <span class="component-name">Sumac Cookie Base</span>
+      <span class="component-prep">Dough holds 2 days wrapped · Baked cookies 3 days sealed</span>
+    </div>
+
+    <div class="component-body">
+      <div class="ingredients-col">
+        <span class="col-head">Ingredients</span>
+
+        <div class="ing">
+          <span class="ing-amt">200 g</span>
+          <div class="ing-info">
+            <span class="ing-name">plain flour, sifted</span>
+            <span class="ing-fn">structure</span>
+          </div>
+        </div>
+        <div class="ing">
+          <span class="ing-amt">15 g</span>
+          <div class="ing-info">
+            <span class="ing-name">sumac, ground fine</span>
+            <span class="ing-fn">acid and colour</span>
+          </div>
+        </div>
+        <div class="ing">
+          <span class="ing-amt">3 g</span>
+          <div class="ing-info">
+            <span class="ing-name">nigella seeds, whole</span>
+            <span class="ing-fn">texture and visual</span>
+          </div>
+        </div>
+        <div class="ing">
+          <span class="ing-amt">120 g</span>
+          <div class="ing-info">
+            <span class="ing-name">caster sugar, fine crystal</span>
+            <span class="ing-fn">sweetness</span>
+          </div>
+        </div>
+        <div class="ing">
+          <span class="ing-amt">80 ml</span>
+          <div class="ing-info">
+            <span class="ing-name">extra virgin olive oil, fruity</span>
+            <span class="ing-fn">fat richness</span>
+          </div>
+        </div>
+        <div class="ing">
+          <span class="ing-amt">1 large</span>
+          <div class="ing-info">
+            <span class="ing-name">egg, room temperature</span>
+            <span class="ing-fn">binding</span>
+          </div>
+        </div>
+        <div class="ing">
+          <span class="ing-amt">3 g</span>
+          <div class="ing-info">
+            <span class="ing-name">fine sea salt</span>
+            <span class="ing-fn">flavour enhancement</span>
+          </div>
+        </div>
+        <div class="ing">
+          <span class="ing-amt">150 g</span>
+          <div class="ing-info">
+            <span class="ing-name">vanilla halva, walnut-sized pieces</span>
+            <span class="ing-fn">sweetness and texture</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="method-col">
+        <span class="col-head">Method</span>
+
+        <div class="step">
+          <span class="step-n">01</span>
+          <div class="step-body">
+            <p class="step-text">Heat oven to 180°C. <span class="step-time">20 min preheat</span></p>
+            <p class="step-why">Taste the sumac first — it should be tangy and fruity, not stale or dusty.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-n">02</span>
+          <div class="step-body">
+            <p class="step-text">Whisk flour, sumac, nigella, and salt together in a large bowl. <span class="step-time">2 min</span></p>
+            <p class="step-why">Even distribution prevents sumac clumps. The mixture should smell fruity and aromatic.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-n">03</span>
+          <div class="step-body">
+            <p class="step-text">Beat sugar, olive oil, and egg until just combined. <span class="step-time">1 min</span></p>
+            <p class="step-why">Minimal mixing. Halva carries enough salt — no more needed here.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-n">04</span>
+          <div class="step-body">
+            <p class="step-text">Fold wet into dry until barely combined. <span class="step-time">30 sec</span></p>
+            <p class="step-why">Overworking develops gluten. Dough should taste pleasantly tart.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-n">05</span>
+          <div class="step-body">
+            <p class="step-text">Fold in halva pieces gently. <span class="step-time">30 sec</span></p>
+            <p class="step-why">Keep chunks intact. Pieces should be visible and irregularly distributed.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-n">06</span>
+          <div class="step-body">
+            <p class="step-text">Scoop 30 g balls onto lined trays, spaced 4 cm apart. Bake 12–14 min until edges are set and the surface turns matte.</p>
+            <p class="step-why">Edges firm before the centre does. The middle looks underdone — correct. It sets on the tray.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="doneness">
+        <div class="doneness-label-col">
+          <span class="col-head" style="margin-bottom:0;">Doneness</span>
+        </div>
+        <div class="doneness-cues-col">
+          <p class="cue">Dough holds when squeezed but stays slightly crumbly</p>
+          <p class="cue">Sumac evenly distributed, no dry white pockets</p>
+          <p class="cue">Baked: edges golden and set, centre still appears slightly underdone — correct</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPONENT 2 -->
+  <div class="component">
+    <div class="component-header">
+      <span class="component-num">2</span>
+      <span class="component-name">Verjuice Glaze</span>
+      <span class="component-prep">Make at time of glazing only · Does not hold</span>
+    </div>
+
+    <div class="component-body">
+      <div class="ingredients-col">
+        <span class="col-head">Ingredients</span>
+
+        <div class="ing">
+          <span class="ing-amt">30 ml</span>
+          <div class="ing-info">
+            <span class="ing-name">verjuice, slightly reduced</span>
+            <span class="ing-fn">acid brightness</span>
+          </div>
+        </div>
+        <div class="ing">
+          <span class="ing-amt">120 g</span>
+          <div class="ing-info">
+            <span class="ing-name">icing sugar, sifted</span>
+            <span class="ing-fn">sweetness and body</span>
+          </div>
+        </div>
+        <div class="ing">
+          <span class="ing-amt">2 g</span>
+          <div class="ing-info">
+            <span class="ing-name">nigella seeds</span>
+            <span class="ing-fn">finish and garnish</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="method-col">
+        <span class="col-head">Method</span>
+
+        <div class="step">
+          <span class="step-n">01</span>
+          <div class="step-body">
+            <p class="step-text">Reduce verjuice by half over medium heat. <span class="step-time">3 min</span></p>
+            <p class="step-why">Should taste bright but not harsh. Concentrated, not aggressive.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-n">02</span>
+          <div class="step-body">
+            <p class="step-text">Whisk reduced verjuice into icing sugar gradually. <span class="step-time">1 min</span></p>
+            <p class="step-why">Balance should favour tart over sweet. It will seem too sharp — correct.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-n">03</span>
+          <div class="step-body">
+            <p class="step-text">Spoon over cooled cookies. Scatter nigella seeds immediately before glaze sets.</p>
+            <p class="step-why">Seeds need to adhere — scatter within 30 seconds of glazing.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="doneness">
+        <div class="doneness-label-col">
+          <span class="col-head" style="margin-bottom:0;">Doneness</span>
+        </div>
+        <div class="doneness-cues-col">
+          <p class="cue">Coats a spoon but drips freely — not stiff, not watery</p>
+          <p class="cue">Pale ivory with slight transparency and a visible sheen</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VARIATIONS -->
+  <div class="variations-section">
+    <div class="variations-head">
+      <div class="variations-label">
+        <span class="label-grey">Variations</span>
+      </div>
+      <div class="variations-grid">
+        <div class="variation">
+          <span class="var-name">Orange Blossom</span>
+          <p class="var-desc">Replace verjuice with orange blossom water in the glaze. Amplifies the halva's natural fragrance. Use sparingly — orange blossom is forceful.</p>
+        </div>
+        <div class="variation">
+          <span class="var-name">Pistachio</span>
+          <p class="var-desc">Fold 50 g roughly chopped unsalted pistachios through with the halva. Adds textural relief and colour — the green against the pink of sumac.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <span class="footer-brand"><span>MISE</span> · Ottolenghi Fingerprint · Kitchen 01</span>
+    <span class="label-grey">Dessert</span>
+  </footer>
+
+</div>
+</body>
+</html>

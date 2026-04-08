@@ -16,9 +16,11 @@
     "db:stop": "npx supabase stop",
     "db:reset": "npx supabase db reset",
     "db:migrate": "npx supabase migration new",
-    "db:push": "npx supabase db push",
+    "db:push": "npx supabase db push --local --include-all --yes",
+    "db:push:prod": "npx supabase db push --include-all --yes",
+    "db:push:dry": "npx supabase db push --local --include-all --dry-run",
     "db:diff": "npx supabase db diff",
-    "db:status": "npx supabase status",
+    "db:status": "npx supabase migration list --local",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe"
   },
   "dependencies": {

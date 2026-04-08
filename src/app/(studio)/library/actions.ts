@@ -29,6 +29,7 @@ export interface RecipeRow {
   variations: Recipe['variations'];
   related: Recipe['related'];
   thinking: Recipe['thinking'];
+  decision_lock_answers: Array<{ question: string; answer: string }> | null;
   prompt_used: Recipe['promptSnapshot'];
   complexity_mode: string;
   cooked: boolean;
@@ -64,12 +65,11 @@ export async function saveRecipe(
     return { success: false, error: 'Unable to verify account. Please try again.' };
   }
 
-  if (user.tier === 'free') {
-    return {
-      success: false,
-      error: 'The Recipe Library requires a paid plan. Upgrade to save and organise your recipes.',
-    };
-  }
+  // Tier check bypassed for development
+  // TODO: re-enable tier check before production
+  // if (user.tier === 'free') {
+  //   return { success: false, error: 'The Recipe Library requires a paid plan.' };
+  // }
 
   const { data, error } = await supabase
     .from('recipes')
@@ -86,6 +86,7 @@ export async function saveRecipe(
       variations: recipe.variations,
       related: recipe.related,
       thinking: recipe.thinking,
+      decision_lock_answers: recipe.decision_lock_answers ?? null,
       prompt_used: recipe.promptSnapshot,
       complexity_mode: recipe.complexityMode,
       cooked: false,
@@ -204,20 +205,29 @@ export async function searchRecipes(
     return getRecipes(uid);
   }
 
-  // Use ilike for case-insensitive title search
-  const { data, error } = await supabase
-    .from('recipes')
-    .select('*')
-    .eq('user_id', uid)
-    .ilike('title', `%${q}%`)
-    .order('updated_at', { ascending: false });
+  // Multi-field search using Supabase .or() across title, intent JSONB fields,
+  // flavour JSONB fields, and tags (cast to text for ilike matching).
+  try {
+    const { data, error } = await supabase
+      .from('recipes')
+      .select('*')
+      .eq('user_id', uid)
+      .or(
+        `title.ilike.%${q}%,intent->occasion.ilike.%${q}%,intent->mood.ilike.%${q}%,intent->season.ilike.%${q}%,intent->effort.ilike.%${q}%,flavour->dominant_element.ilike.%${q}%,tags::text.ilike.%${q}%`
+      )
+      .order('updated_at', { ascending: false });
 
-  if (error) {
-    // Fall back to simple title search if complex query fails
+    if (error) {
+      throw error;
+    }
+
+    return { success: true, data: (data ?? []) as RecipeRow[] };
+  } catch {
+    // Fall back to simple title-only search if multi-field query fails
     const { data: fallbackData, error: fallbackError } = await supabase
       .from('recipes')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', uid)
       .ilike('title', `%${q}%`)
       .order('updated_at', { ascending: false });
 
@@ -227,8 +237,6 @@ export async function searchRecipes(
 
     return { success: true, data: (fallbackData ?? []) as RecipeRow[] };
   }
-
-  return { success: true, data: (data ?? []) as RecipeRow[] };
 }
 
 // ---------------------------------------------------------------------------
@@ -294,4 +302,28 @@ export async function addDevNotes(
   }
 
   return { success: true, data: undefined };
+}
+
+
+// ---------------------------------------------------------------------------
+// getRecipeVersion — fetch a specific version's recipe data
+// ---------------------------------------------------------------------------
+
+export async function getRecipeVersion(
+  versionId: string
+): Promise<ActionResult<RecipeRow>> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('recipe_versions')
+    .select('recipe_data, recipe_id')
+    .eq('id', versionId)
+    .single();
+
+  if (error || !data) {
+    return { success: false, error: 'Version not found.' };
+  }
+
+  // Return the version's recipe_data as a RecipeRow-like object
+  return { success: true, data: data.recipe_data as RecipeRow };
 }

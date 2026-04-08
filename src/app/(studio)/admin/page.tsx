@@ -49,8 +49,8 @@ export default async function AdminDashboardPage() {
   const navItems = [
     {
       href: '/admin/fingerprints',
-      title: 'Fingerprint Management',
-      description: 'View, edit, and version fingerprint prompt texts',
+      title: 'Chef Profiles',
+      description: 'Create, edit, and version chef persona prompts',
     },
     {
       href: '/admin/providers',

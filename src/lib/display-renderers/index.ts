@@ -82,26 +82,42 @@ export function renderFullRecipe(recipe: Recipe): string {
   lines.push(`# ${recipe.title}`);
   lines.push('');
 
-  // Intent
-  lines.push(`**Occasion:** ${recipe.intent.occasion} | **Mood:** ${recipe.intent.mood} | **Effort:** ${recipe.intent.effort} | **Time:** ${recipe.intent.time} min`);
-  if (recipe.intent.season.length > 0) {
-    lines.push(`**Season:** ${recipe.intent.season.join(', ')}`);
+  // Intent (defensive — may not exist on parsed recipes)
+  if (recipe.intent?.occasion || recipe.intent?.mood) {
+    lines.push(`**Occasion:** ${recipe.intent.occasion ?? ''} | **Mood:** ${recipe.intent.mood ?? ''} | **Effort:** ${recipe.intent.effort ?? ''} | **Time:** ${recipe.intent.time ?? 0} min`);
+    if (recipe.intent.season?.length > 0) {
+      lines.push(`**Season:** ${recipe.intent.season.join(', ')}`);
+    }
+    lines.push('');
   }
-  lines.push('');
 
   // The Thinking
-  lines.push('## The Thinking');
-  lines.push(`**Approach:** ${recipe.thinking.approach}`);
-  lines.push(`**Architecture:** ${recipe.thinking.architecture}`);
-  lines.push(`**Pattern:** ${recipe.thinking.pattern}`);
-  lines.push('');
+  if (recipe.thinking?.approach || recipe.thinking?.architecture || recipe.thinking?.pattern) {
+    lines.push('## The Thinking');
+    if (recipe.thinking.approach) lines.push(`**Approach:** ${recipe.thinking.approach}`);
+    if (recipe.thinking.architecture) lines.push(`**Architecture:** ${recipe.thinking.architecture}`);
+    if (recipe.thinking.pattern) lines.push(`**Pattern:** ${recipe.thinking.pattern}`);
+    lines.push('');
+  }
+
+  // Decision Lock
+  if (recipe.decision_lock_answers?.length) {
+    lines.push('## Decision Lock');
+    for (const dla of recipe.decision_lock_answers) {
+      lines.push(`  - **Q:** ${dla.question}`);
+      lines.push(`    **A:** ${dla.answer}`);
+    }
+    lines.push('');
+  }
 
   // Flavour Architecture
-  lines.push('## Flavour Architecture');
-  lines.push(`**Profile:** ${recipe.flavour.profile.join(', ')}`);
-  lines.push(`**Dominant:** ${recipe.flavour.dominant}`);
-  lines.push(`**Balance:** ${recipe.flavour.balance}`);
-  lines.push('');
+  if (recipe.flavour?.profile || recipe.flavour?.dominant) {
+    lines.push('## Flavour Architecture');
+    if (recipe.flavour.profile?.length) lines.push(`**Profile:** ${recipe.flavour.profile.join(', ')}`);
+    if (recipe.flavour.dominant) lines.push(`**Dominant:** ${recipe.flavour.dominant}`);
+    if (recipe.flavour.balance) lines.push(`**Balance:** ${recipe.flavour.balance}`);
+    lines.push('');
+  }
 
   // Components
   lines.push('## Components');
@@ -112,12 +128,12 @@ export function renderFullRecipe(recipe: Recipe): string {
   }
 
   // Variations
-  if (recipe.variations.dietary.length > 0 || recipe.variations.pantry.length > 0) {
+  if ((recipe.variations?.dietary?.length > 0) || (recipe.variations?.pantry?.length > 0)) {
     lines.push('## Variations');
-    for (const v of recipe.variations.dietary) {
+    for (const v of (recipe.variations.dietary ?? [])) {
       lines.push(`  - **${v.name}:** ${v.changes}`);
     }
-    for (const v of recipe.variations.pantry) {
+    for (const v of (recipe.variations.pantry ?? [])) {
       lines.push(`  - **${v.name}:** ${v.changes}`);
     }
     lines.push('');
@@ -134,7 +150,9 @@ export function renderBrief(recipe: Recipe): string {
   const lines: string[] = [];
 
   lines.push(`# ${recipe.title}`);
-  lines.push(`${recipe.intent.occasion} · ${recipe.intent.mood} · ${recipe.intent.time} min · ${recipe.intent.effort}`);
+  if (recipe.intent?.occasion) {
+    lines.push(`${recipe.intent.occasion} · ${recipe.intent.mood ?? ''} · ${recipe.intent.time ?? 0} min · ${recipe.intent.effort ?? ''}`);
+  }
   lines.push('');
 
   for (const comp of recipe.components) {
@@ -196,28 +214,28 @@ export function renderFlavourMap(recipe: Recipe): string {
 
   lines.push(`# ${recipe.title} — Flavour Map`);
   lines.push('');
-  lines.push(`**Profile:** ${f.profile.join(', ')}`);
-  lines.push(`**Dominant direction:** ${f.dominant}`);
+  if (f?.profile?.length) lines.push(`**Profile:** ${f.profile.join(', ')}`);
+  if (f?.dominant) lines.push(`**Dominant direction:** ${f.dominant}`);
   lines.push('');
 
-  if (f.acid.length > 0) {
+  if (f?.acid?.length > 0) {
     lines.push('**Acid:**');
     for (const a of f.acid) lines.push(`  - ${a.source} — ${a.role}`);
   }
-  if (f.fat.length > 0) {
+  if (f?.fat?.length > 0) {
     lines.push('**Fat:**');
     for (const ft of f.fat) lines.push(`  - ${ft.source} — ${ft.role}`);
   }
-  lines.push(`**Heat:** ${f.heat.level} (${f.heat.source})`);
-  lines.push(`**Sweet:** ${f.sweet.level} (${f.sweet.source})`);
+  if (f?.heat) lines.push(`**Heat:** ${f.heat.level} (${f.heat.source})`);
+  if (f?.sweet) lines.push(`**Sweet:** ${f.sweet.level} (${f.sweet.source})`);
   lines.push('');
 
-  if (f.texture.length > 0) {
+  if (f?.texture?.length > 0) {
     lines.push('**Texture contrasts:**');
     for (const t of f.texture) lines.push(`  - ${t.element} → ${t.contrast}`);
   }
   lines.push('');
-  lines.push(`**Balance:** ${f.balance}`);
+  if (f?.balance) lines.push(`**Balance:** ${f.balance}`);
 
   return lines.join('\n');
 }
@@ -363,7 +381,13 @@ export function renderTimeline(recipe: Recipe, serveTime: Date): string {
 
   // Build schedule working backward from serve time
   // Collect all stages from timeline + component prep-ahead info
-  const stages = recipe.timeline.map((stage) => ({
+  const timelineArr = Array.isArray(recipe.timeline) ? recipe.timeline : [];
+  if (timelineArr.length === 0) {
+    lines.push('No timeline data available.');
+    return lines.join('\n');
+  }
+
+  const stages = timelineArr.map((stage) => ({
     name: stage.name,
     duration: stage.duration,
     parallel: stage.parallel,
@@ -430,18 +454,31 @@ export function renderRiff(recipe: Recipe): string {
   lines.push('');
 
   // The Thinking
-  lines.push('## The Thinking');
-  lines.push(recipe.thinking.approach);
-  lines.push(recipe.thinking.architecture);
-  lines.push(recipe.thinking.pattern);
-  lines.push('');
+  if (recipe.thinking?.approach || recipe.thinking?.architecture || recipe.thinking?.pattern) {
+    lines.push('## The Thinking');
+    if (recipe.thinking.approach) lines.push(recipe.thinking.approach);
+    if (recipe.thinking.architecture) lines.push(recipe.thinking.architecture);
+    if (recipe.thinking.pattern) lines.push(recipe.thinking.pattern);
+    lines.push('');
+  }
+
+  // Decision Lock — compact inline for riff mode
+  if (recipe.decision_lock_answers?.length) {
+    lines.push('**Constraint Decisions:**');
+    for (const dla of recipe.decision_lock_answers) {
+      lines.push(`  - ${dla.question} → ${dla.answer}`);
+    }
+    lines.push('');
+  }
 
   // Flavour Map
-  lines.push('## Flavour Architecture');
-  lines.push(`**Profile:** ${recipe.flavour.profile.join(', ')}`);
-  lines.push(`**Dominant:** ${recipe.flavour.dominant}`);
-  lines.push(`**Balance:** ${recipe.flavour.balance}`);
-  lines.push('');
+  if (recipe.flavour?.profile || recipe.flavour?.dominant) {
+    lines.push('## Flavour Architecture');
+    if (recipe.flavour.profile?.length) lines.push(`**Profile:** ${recipe.flavour.profile.join(', ')}`);
+    if (recipe.flavour.dominant) lines.push(`**Dominant:** ${recipe.flavour.dominant}`);
+    if (recipe.flavour.balance) lines.push(`**Balance:** ${recipe.flavour.balance}`);
+    lines.push('');
+  }
 
   // Technique direction — components without amounts
   lines.push('## Technique Direction');

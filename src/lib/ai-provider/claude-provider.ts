@@ -18,7 +18,7 @@ import type { AIProvider, AIProviderError, AIProviderInfo, PairingSuggestion } f
 
 const DEFAULT_SONNET_MODEL = 'claude-sonnet-4-20250514';
 const HAIKU_MODEL = 'claude-3-5-haiku-20241022';
-const MAX_OUTPUT_TOKENS = 2000;
+const MAX_OUTPUT_TOKENS = 4096;
 
 // ---------------------------------------------------------------------------
 // Error mapping
@@ -73,6 +73,34 @@ function mapError(err: unknown): AIProviderError {
 }
 
 // ---------------------------------------------------------------------------
+// JSON extraction helper — handles markdown code blocks
+// ---------------------------------------------------------------------------
+
+function extractJSON(text: string): unknown {
+  // Try direct parse first
+  try { return JSON.parse(text); } catch { /* continue */ }
+
+  // Try extracting from markdown code block: ```json ... ``` or ``` ... ```
+  const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+  if (codeBlockMatch) {
+    try { return JSON.parse(codeBlockMatch[1].trim()); } catch { /* continue */ }
+  }
+
+  // Try finding the first [ ... ] or { ... } in the text
+  const arrayMatch = text.match(/\[[\s\S]*\]/);
+  if (arrayMatch) {
+    try { return JSON.parse(arrayMatch[0]); } catch { /* continue */ }
+  }
+
+  const objMatch = text.match(/\{[\s\S]*\}/);
+  if (objMatch) {
+    try { return JSON.parse(objMatch[0]); } catch { /* continue */ }
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Claude Provider
 // ---------------------------------------------------------------------------
 
@@ -104,6 +132,7 @@ export class ClaudeProvider implements AIProvider {
       const stream = this.client.messages.stream({
         model: this.generationModel,
         max_tokens: MAX_OUTPUT_TOKENS,
+        temperature: 0.9,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }],
       });
@@ -183,16 +212,15 @@ export class ClaudeProvider implements AIProvider {
       const textBlock = response.content.find((b) => b.type === 'text');
       if (!textBlock || textBlock.type !== 'text') return [];
 
-      try {
-        return JSON.parse(textBlock.text) as PairingSuggestion[];
-      } catch {
-        const err: AIProviderError = {
-          code: 'invalid_response',
-          message: 'Failed to parse pairing suggestions.',
-          retryable: true,
-        };
-        throw err;
-      }
+      const parsed = extractJSON(textBlock.text);
+      if (Array.isArray(parsed)) return parsed as PairingSuggestion[];
+
+      const err: AIProviderError = {
+        code: 'invalid_response',
+        message: 'Failed to parse pairing suggestions.',
+        retryable: true,
+      };
+      throw err;
     } catch (err) {
       if ((err as AIProviderError).code) throw err;
       throw mapError(err);
@@ -224,16 +252,15 @@ export class ClaudeProvider implements AIProvider {
       const textBlock = response.content.find((b) => b.type === 'text');
       if (!textBlock || textBlock.type !== 'text') return [];
 
-      try {
-        return JSON.parse(textBlock.text) as Substitution[];
-      } catch {
-        const err: AIProviderError = {
-          code: 'invalid_response',
-          message: 'Failed to parse substitution suggestions.',
-          retryable: true,
-        };
-        throw err;
-      }
+      const parsed = extractJSON(textBlock.text);
+      if (Array.isArray(parsed)) return parsed as Substitution[];
+
+      const err: AIProviderError = {
+        code: 'invalid_response',
+        message: 'Failed to parse substitution suggestions.',
+        retryable: true,
+      };
+      throw err;
     } catch (err) {
       if ((err as AIProviderError).code) throw err;
       throw mapError(err);
