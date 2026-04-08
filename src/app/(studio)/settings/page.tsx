@@ -10,6 +10,7 @@
 import { useEffect, useState } from 'react';
 import type { ComplexityMode } from '@/lib/types/recipe';
 import { COMPLEXITY_MODE_OPTIONS } from '@/lib/complexity-modes';
+import { INTOLERANCE_CATEGORIES } from '@/lib/intolerance-constants';
 
 interface BillingInfo {
   tier: string;
@@ -31,6 +32,11 @@ export default function SettingsPage() {
   const [savingComplexity, setSavingComplexity] = useState(false);
   const [complexitySaved, setComplexitySaved] = useState(false);
 
+  const [selectedIntolerances, setSelectedIntolerances] = useState<Set<string>>(new Set());
+  const [savingIntolerances, setSavingIntolerances] = useState(false);
+  const [intolerancesSaved, setIntolerancesSaved] = useState(false);
+  const [intolerancesError, setIntolerancesError] = useState<string | null>(null);
+
   useEffect(() => {
     async function fetchBilling() {
       try {
@@ -46,6 +52,21 @@ export default function SettingsPage() {
       }
     }
     fetchBilling();
+  }, []);
+
+  useEffect(() => {
+    async function fetchIntolerances() {
+      try {
+        const res = await fetch('/api/settings/intolerances');
+        if (res.ok) {
+          const data = await res.json();
+          setSelectedIntolerances(new Set(data.intolerances ?? []));
+        }
+      } catch {
+        // Non-blocking — panel shows all items unselected
+      }
+    }
+    fetchIntolerances();
   }, []);
 
   const handleComplexityChange = async (mode: ComplexityMode) => {
@@ -65,6 +86,45 @@ export default function SettingsPage() {
       // Silently handle — UI already reflects the selection
     } finally {
       setSavingComplexity(false);
+    }
+  };
+
+  const handleIntoleranceToggle = (id: string) => {
+    setSelectedIntolerances((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleSaveIntolerances = async () => {
+    setSavingIntolerances(true);
+    setIntolerancesSaved(false);
+    setIntolerancesError(null);
+
+    try {
+      const res = await fetch('/api/settings/intolerances', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intolerances: Array.from(selectedIntolerances) }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setIntolerancesError(data.error ?? 'Failed to save intolerances.');
+        return;
+      }
+
+      setIntolerancesSaved(true);
+      setTimeout(() => setIntolerancesSaved(false), 2000);
+    } catch {
+      setIntolerancesError('Failed to save intolerances.');
+    } finally {
+      setSavingIntolerances(false);
     }
   };
 
@@ -162,6 +222,55 @@ export default function SettingsPage() {
         {complexitySaved && (
           <p className="mt-3 text-xs text-green-600">Default complexity mode saved ✓</p>
         )}
+      </div>
+
+      {/* Intolerance Panel */}
+      <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm" role="region" aria-label="Food intolerances">
+        <h2 className="text-lg font-semibold text-gray-900">Food Intolerances</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Select any food intolerances. These will be applied as constraints when generating recipes.
+        </p>
+
+        <div className="mt-4 space-y-5">
+          {INTOLERANCE_CATEGORIES.map((category) => (
+            <fieldset key={category.name}>
+              <legend className="text-sm font-medium text-gray-700">{category.name}</legend>
+              <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
+                {category.items.map((item) => (
+                  <label key={item.id} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedIntolerances.has(item.id)}
+                      onChange={() => handleIntoleranceToggle(item.id)}
+                      disabled={savingIntolerances}
+                      aria-label={item.label}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{item.label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ))}
+        </div>
+
+        <div className="mt-5 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleSaveIntolerances}
+            disabled={savingIntolerances}
+            className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50"
+          >
+            {savingIntolerances ? 'Saving…' : 'Save Intolerances'}
+          </button>
+
+          {intolerancesSaved && (
+            <p className="text-xs text-green-600">Intolerances saved ✓</p>
+          )}
+          {intolerancesError && (
+            <p className="text-xs text-red-600">{intolerancesError}</p>
+          )}
+        </div>
       </div>
     </div>
   );

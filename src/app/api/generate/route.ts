@@ -5,6 +5,7 @@ import { assemblePrompt } from '@/lib/prompt-assembler';
 import type { RequestContext } from '@/lib/prompt-assembler';
 import { createAIProvider } from '@/lib/ai-provider';
 import type { ComplexityMode } from '@/lib/types/recipe';
+import { formatIntoleranceConstraints } from '@/lib/intolerance-constants';
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -36,13 +37,36 @@ export async function POST(request: NextRequest) {
     // Non-fatal — proceed without history
   }
 
+  // Fetch saved intolerances and merge with per-request constraints
+  let mergedConstraints: string[] | undefined = body.constraints as string[] | undefined;
+  try {
+    const { data: prefRow } = await supabase
+      .from('preferences')
+      .select('value')
+      .eq('user_id', user.id)
+      .eq('key', 'intolerances')
+      .single();
+
+    if (prefRow?.value && Array.isArray((prefRow.value as { items?: string[] }).items)) {
+      const intoleranceConstraints = formatIntoleranceConstraints(
+        (prefRow.value as { items: string[] }).items
+      );
+      if (intoleranceConstraints.length > 0) {
+        const combined = [...(mergedConstraints ?? []), ...intoleranceConstraints];
+        mergedConstraints = [...new Set(combined)];
+      }
+    }
+  } catch {
+    // Non-fatal — proceed without intolerance constraints
+  }
+
   const ctx: RequestContext = {
     dishDescription: dish.trim(),
     servings: (body.servings as number) || 4,
     occasion: body.occasion as string | undefined,
     mood: body.mood as string | undefined,
     season: body.season as string | undefined,
-    constraints: body.constraints as string[] | undefined,
+    constraints: mergedConstraints,
     recentRecipes,
   };
 
