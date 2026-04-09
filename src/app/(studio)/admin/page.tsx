@@ -53,6 +53,11 @@ export default async function AdminDashboardPage() {
       description: 'Create, edit, and version chef persona prompts',
     },
     {
+      href: '/admin/complexity-modes',
+      title: 'Complexity Modes',
+      description: 'Configure generation modes — names, descriptions, and prompt instructions',
+    },
+    {
       href: '/admin/providers',
       title: 'AI Provider Config',
       description: 'Manage AI providers, API keys, and active model',

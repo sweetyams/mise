@@ -51,14 +51,6 @@ export async function POST() {
 
   const serviceClient = createServiceClient();
 
-  // Fetch tasting notes
-  const { data: notes } = await serviceClient
-    .from('tasting_notes')
-    .select('taste, texture, aroma, comments')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(10);
-
   // Fetch dev logs from recipes
   const { data: recipes } = await serviceClient
     .from('recipes')
@@ -161,12 +153,6 @@ export async function POST() {
         })),
       ...recipeHistoryLogs,
     ],
-    tastingNotes: (notes ?? []).map((n) => ({
-      taste: n.taste ?? '',
-      texture: n.texture ?? '',
-      aroma: n.aroma ?? '',
-      comments: n.comments ?? '',
-    })),
     preferences: [],
   };
 

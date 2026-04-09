@@ -272,6 +272,38 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {/* Chef Brain Section */}
+      <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900">Chef Brain</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Your personalised cooking identity — compiled from your preferences, dev logs, and tasting notes.
+        </p>
+        <div className="mt-4">
+          <a
+            href="/brain"
+            className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+          >
+            View Chef Brain
+          </a>
+        </div>
+      </div>
+
+      {/* Pricing Section */}
+      <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900">Plans & Pricing</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          View available plans and upgrade your account.
+        </p>
+        <div className="mt-4">
+          <a
+            href="/pricing"
+            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+          >
+            View Plans
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

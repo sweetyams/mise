@@ -33,8 +33,6 @@ export default function Home() {
         <div className="mt-8 flex justify-center gap-4 text-xs text-gray-400">
           <Link href="/brain" className="hover:text-gray-600">Chef Brain</Link>
           <span>·</span>
-          <Link href="/fermentation" className="hover:text-gray-600">Fermentation</Link>
-          <span>·</span>
           <Link href="/pricing" className="hover:text-gray-600">Pricing</Link>
           <span>·</span>
           <Link href="/settings" className="hover:text-gray-600">Settings</Link>

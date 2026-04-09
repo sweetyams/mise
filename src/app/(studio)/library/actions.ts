@@ -24,6 +24,7 @@ export interface RecipeRow {
   id: string;
   user_id: string;
   fingerprint_id: string | null;
+  fingerprint_name: string | null;
   title: string;
   version: number;
   intent: Recipe['intent'];
@@ -130,7 +131,7 @@ export async function getRecipes(
 
   const { data, error } = await supabase
     .from('recipes')
-    .select('*')
+    .select('*, fingerprints(name)')
     .eq('user_id', uid)
     .order('updated_at', { ascending: false });
 
@@ -138,7 +139,13 @@ export async function getRecipes(
     return { success: false, error: `Failed to load recipes: ${error.message}` };
   }
 
-  return { success: true, data: (data ?? []) as RecipeRow[] };
+  // Flatten the joined fingerprint name onto each row
+  const recipes = (data ?? []).map((row: any) => ({
+    ...row,
+    fingerprint_name: row.fingerprints?.name ?? null,
+  })) as RecipeRow[];
+
+  return { success: true, data: recipes };
 }
 
 // ---------------------------------------------------------------------------
@@ -401,6 +408,7 @@ export async function generateAndSaveRecipeCard(
 
   // 5. Parse AI response — try JSON.parse, then markdown code blocks, then { ... }
   let parsed: unknown;
+  console.log('[MISE] Recipe card raw AI response (first 500 chars):', aiResponse.slice(0, 500));
   try {
     parsed = JSON.parse(aiResponse);
   } catch {
@@ -434,6 +442,8 @@ export async function generateAndSaveRecipeCard(
   // 6. Validate with Zod
   const validation = CookbookFormatSchema.safeParse(parsed);
   if (!validation.success) {
+    console.error('[MISE] Recipe card Zod validation failed:', JSON.stringify(validation.error.issues, null, 2));
+    console.error('[MISE] Recipe card parsed keys:', Object.keys(parsed as Record<string, unknown>));
     return {
       success: false,
       error: 'The generated recipe card had an unexpected format. Please try again.',

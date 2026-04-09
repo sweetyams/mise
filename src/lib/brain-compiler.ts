@@ -18,7 +18,6 @@ export interface BrainCompilationInput {
   userId: string;
   onboardingAnswers: Record<string, string>;
   devLogs: Array<{ text: string; createdAt: string }>;
-  tastingNotes: Array<{ taste: string; texture: string; aroma: string; comments: string }>;
   preferences: Array<{ key: string; value: string; confidence: number }>;
 }
 
@@ -62,14 +61,6 @@ function buildCompilationPrompt(input: BrainCompilationInput): string {
     sections.push('RECENT DEVELOPMENT LOGS:');
     for (const log of input.devLogs.slice(-10)) {
       sections.push(`- [${log.createdAt}] ${log.text}`);
-    }
-    sections.push('');
-  }
-
-  if (input.tastingNotes.length > 0) {
-    sections.push('TASTING NOTES:');
-    for (const note of input.tastingNotes.slice(-10)) {
-      sections.push(`- Taste: ${note.taste}, Texture: ${note.texture}, Aroma: ${note.aroma}. ${note.comments}`);
     }
     sections.push('');
   }
@@ -122,7 +113,6 @@ export async function compileBrain(input: BrainCompilationInput): Promise<Compil
           raw_data: {
             onboardingAnswers: input.onboardingAnswers,
             devLogs: input.devLogs,
-            tastingNotes: input.tastingNotes,
             preferences: input.preferences,
           },
           version: newVersion,

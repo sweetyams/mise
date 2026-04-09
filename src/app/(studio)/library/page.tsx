@@ -123,7 +123,7 @@ export default function LibraryPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
-  const [facets, setFacets] = useState<FacetFilters>({ occasion: null, mood: null, effort: null, season: null, dietary: null, dominantElement: null });
+  const [facets, setFacets] = useState<FacetFilters>({ occasion: null, mood: null, effort: null, season: null, dietary: null, dominantElement: null, fingerprint: null });
 
   // Collect all unique tags across all recipes (not filtered)
   const allTags = Array.from(
@@ -138,6 +138,7 @@ export default function LibraryPage() {
     const seasons = new Set<string>();
     const dietaryTags = new Set<string>();
     const dominantElements = new Set<string>();
+    const fingerprints = new Set<string>();
 
     for (const recipe of allRecipes) {
       const intent = recipe.intent as any;
@@ -159,6 +160,7 @@ export default function LibraryPage() {
         }
       }
       if (typeof flavour?.dominant_element === 'string' && flavour.dominant_element) dominantElements.add(flavour.dominant_element);
+      if (typeof recipe.fingerprint_name === 'string' && recipe.fingerprint_name) fingerprints.add(recipe.fingerprint_name);
     }
 
     return {
@@ -168,6 +170,7 @@ export default function LibraryPage() {
       seasons: Array.from(seasons).sort(),
       dietaryTags: Array.from(dietaryTags).sort(),
       dominantElements: Array.from(dominantElements).sort(),
+      fingerprints: Array.from(fingerprints).sort(),
     };
   })();
 
@@ -212,7 +215,7 @@ export default function LibraryPage() {
   const hasAnyFilter = Object.values(facets).some((v) => v != null) || activeTag != null || searchQuery.trim().length > 0;
 
   const clearAllFilters = () => {
-    setFacets({ occasion: null, mood: null, effort: null, season: null, dietary: null, dominantElement: null });
+    setFacets({ occasion: null, mood: null, effort: null, season: null, dietary: null, dominantElement: null, fingerprint: null });
     setActiveTag(null);
     setSearchQuery('');
   };
@@ -225,7 +228,7 @@ export default function LibraryPage() {
     <div className="editorial" style={{ minHeight: '100vh' }}>
       {/* Scoped placeholder style for search input */}
       <style>{`.ed-search-input::placeholder { color: var(--ed-text-muted); opacity: 1; }`}</style>
-      <div style={{ maxWidth: 'var(--ed-content-width)', margin: '0 auto', padding: '48px 40px' }}>
+      <div style={{ maxWidth: '100%', margin: '0 auto', padding: '48px 40px' }}>
         {/* Page title */}
         <h1
           style={{
@@ -282,6 +285,7 @@ export default function LibraryPage() {
         {/* Facet filter controls */}
         {(() => {
           const facetRows: Array<{ label: string; key: keyof FacetFilters; options: string[] }> = [
+            { label: 'Chef', key: 'fingerprint', options: filterOptions.fingerprints },
             { label: 'Occasion', key: 'occasion', options: filterOptions.occasions },
             { label: 'Mood', key: 'mood', options: filterOptions.moods },
             { label: 'Effort', key: 'effort', options: filterOptions.efforts },
@@ -607,7 +611,7 @@ export default function LibraryPage() {
                     }}
                   >
                     {[
-                      recipe.fingerprint_id ? 'Fingerprint' : null,
+                      recipe.fingerprint_name || null,
                       recipe.complexity_mode,
                       recipe.cooked ? 'Cooked' : null,
                       new Date(recipe.updated_at).toLocaleDateString('en-CA', {

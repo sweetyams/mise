@@ -30,6 +30,7 @@ export interface FacetFilters {
   season: string | null;
   dietary: string | null;
   dominantElement: string | null;
+  fingerprint: string | null;
 }
 
 export interface BrainStats {
@@ -164,6 +165,9 @@ export function filterByFacets(
     if (filters.dominantElement != null) {
       if (flavour?.dominant_element !== filters.dominantElement) return false;
     }
+    if (filters.fingerprint != null) {
+      if (recipe.fingerprint_name !== filters.fingerprint) return false;
+    }
 
     return true;
   });
@@ -248,17 +252,17 @@ export function computeBrainStats(recipes: RecipeRow[]): BrainStats {
     const intent = recipe.intent as Recipe['intent'] | null | undefined;
     const flavour = recipe.flavour as Recipe['flavour'] | null | undefined;
 
-    if (flavour?.dominant_element) {
-      const key = flavour.dominant_element;
-      flavourDistribution[key] = (flavourDistribution[key] ?? 0) + 1;
+    const dominantKey = flavour?.dominant_element ?? (flavour as any)?.dominant;
+    if (dominantKey) {
+      flavourDistribution[dominantKey] = (flavourDistribution[dominantKey] ?? 0) + 1;
     }
-    if (intent?.occasion) {
-      const key = intent.occasion;
-      occasionDistribution[key] = (occasionDistribution[key] ?? 0) + 1;
+    const occ = intent?.occasion || (intent as any)?.occasion;
+    if (occ) {
+      occasionDistribution[occ] = (occasionDistribution[occ] ?? 0) + 1;
     }
-    if (intent?.mood) {
-      const key = intent.mood;
-      moodDistribution[key] = (moodDistribution[key] ?? 0) + 1;
+    const m = intent?.mood || (intent as any)?.mood;
+    if (m) {
+      moodDistribution[m] = (moodDistribution[m] ?? 0) + 1;
     }
     if (recipe.complexity_mode) {
       const key = recipe.complexity_mode;

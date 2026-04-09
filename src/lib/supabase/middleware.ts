@@ -32,10 +32,10 @@ export async function updateSession(request: NextRequest) {
   // Protected routes — redirect to login if not authenticated
   // Route groups like (studio) are stripped from URLs, so we check actual paths.
   // Studio routes: /canvas, /library, /brain, /timeline, /kitchens, /pricing,
-  // /settings, /fermentation, /admin
+  // /settings, /admin
   const studioRoutes = [
     '/canvas', '/library', '/brain', '/timeline', '/kitchens',
-    '/pricing', '/settings', '/fermentation', '/admin',
+    '/pricing', '/settings', '/admin',
   ]
   const isStudioRoute = studioRoutes.some(
     (route) => request.nextUrl.pathname === route || request.nextUrl.pathname.startsWith(`${route}/`)
