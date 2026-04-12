@@ -35,7 +35,7 @@ export function EditorialHeader({
   const categoryLabel = categoryParts.join(' · ');
 
   return (
-    <header style={{ paddingTop: '56px', borderBottom: '2px solid var(--ed-text-primary)' }}>
+    <header style={{ paddingTop: '24px', borderBottom: '2px solid var(--ed-text-primary)' }}>
       {/* Top row: fingerprint + category */}
       <div style={{
         display: 'flex',

@@ -18,11 +18,14 @@ import {
 } from '@/components/editorial';
 import type { Recipe, DialDirection } from '@/lib/types/recipe';
 import type { VersionHistoryEntry } from '@/lib/version-store';
+import type { RecipeDiff } from '@/lib/recipe-diff';
+import { diffVersions } from '@/lib/recipe-diff';
 import {
   addDevNotes,
   addTags,
   markAsCooked,
   deleteRecipe,
+  deleteVersion,
   getRecipeVersion,
   generateAndSaveRecipeCard,
   getRecipeCard,
@@ -154,20 +157,6 @@ const textBtnStyle: React.CSSProperties = {
   transition: 'opacity 150ms',
 };
 
-const dialBtnStyle: React.CSSProperties = {
-  fontSize: '11px',
-  fontWeight: 500,
-  letterSpacing: '0.08em',
-  padding: '9px 8px',
-  border: '1px solid var(--ed-border)',
-  background: 'transparent',
-  color: 'var(--ed-text-secondary)',
-  cursor: 'pointer',
-  fontFamily: 'var(--ed-font)',
-  textTransform: 'uppercase',
-  transition: 'border-color 200ms, opacity 150ms',
-};
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -181,6 +170,7 @@ export default function RecipeDetailClient({
   const baseRecipe = rowToRecipe(recipeRow);
 
   // Version viewing state
+  const [localVersions, setLocalVersions] = useState(versions);
   const [viewingVersionId, setViewingVersionId] = useState<string | null>(null);
   const [versionRecipe, setVersionRecipe] = useState<ReturnType<typeof rowToRecipe> | null>(null);
   const [loadingVersion, setLoadingVersion] = useState(false);
@@ -200,9 +190,6 @@ export default function RecipeDetailClient({
   const [decisionLockOpen, setDecisionLockOpen] = useState(false);
   const [dialling, setDialling] = useState(false);
   const [dialError, setDialError] = useState<string | null>(null);
-  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
-  const [compareA, setCompareA] = useState<string | null>(null);
-  const [compareB, setCompareB] = useState<string | null>(null);
   const [unavailableIngredients, setUnavailableIngredients] = useState<Set<string>>(new Set());
   const [substitutionResults, setSubstitutionResults] = useState<Record<string, Substitution[]>>({});
   const [substitutionLoading, setSubstitutionLoading] = useState<string | null>(null);
@@ -216,13 +203,38 @@ export default function RecipeDetailClient({
   const [cardError, setCardError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'detail' | 'cookbook'>(initialRecipeCard ? 'detail' : 'detail');
 
-  // Version switching handler
+  // Version diff state
+  const [versionDiff, setVersionDiff] = useState<RecipeDiff | null>(null);
+  const [diffFromLabel, setDiffFromLabel] = useState('');
+  const [diffToLabel, setDiffToLabel] = useState('');
+  const [versionRecipes, setVersionRecipes] = useState<Map<string, ReturnType<typeof rowToRecipe>>>(new Map());
+
+  // Version switching handler — also computes diff against previous version
   const handleViewVersion = useCallback(async (versionId: string | null) => {
     if (!versionId) {
       // Switch back to current (base) recipe
       setViewingVersionId(null);
       setVersionRecipe(null);
       setViewMode('detail');
+      // Compute diff: last version → current
+      if (localVersions.length > 0) {
+        const lastVersion = localVersions[localVersions.length - 1];
+        let lastRecipe = versionRecipes.get(lastVersion.id);
+        if (!lastRecipe) {
+          const result = await getRecipeVersion(lastVersion.id);
+          if (result.success) {
+            lastRecipe = rowToRecipe(result.data);
+            setVersionRecipes(prev => new Map(prev).set(lastVersion.id, lastRecipe!));
+          }
+        }
+        if (lastRecipe) {
+          setVersionDiff(diffVersions(lastRecipe, baseRecipe));
+          setDiffFromLabel(`v${lastVersion.versionNumber}`);
+          setDiffToLabel('Current');
+        }
+      } else {
+        setVersionDiff(null);
+      }
       // Load card for current version
       const cardResult = await getRecipeCard(baseRecipe.id, baseRecipe.version ?? 1);
       setRecipeCard(cardResult.success ? cardResult.data : null);
@@ -235,7 +247,36 @@ export default function RecipeDetailClient({
       const result = await getRecipeVersion(versionId);
       if (result.success) {
         setViewingVersionId(versionId);
-        setVersionRecipe(rowToRecipe(result.data));
+        const viewedRecipe = rowToRecipe(result.data);
+        setVersionRecipe(viewedRecipe);
+        setVersionRecipes(prev => new Map(prev).set(versionId, viewedRecipe));
+
+        // Compute diff: find the previous version in the list
+        const vIdx = localVersions.findIndex(v => v.id === versionId);
+        if (vIdx > 0) {
+          const prevVersion = localVersions[vIdx - 1];
+          let prevRecipe = versionRecipes.get(prevVersion.id);
+          if (!prevRecipe) {
+            const prevResult = await getRecipeVersion(prevVersion.id);
+            if (prevResult.success) {
+              prevRecipe = rowToRecipe(prevResult.data);
+              setVersionRecipes(prev => new Map(prev).set(prevVersion.id, prevRecipe!));
+            }
+          }
+          if (prevRecipe) {
+            setVersionDiff(diffVersions(prevRecipe, viewedRecipe));
+            setDiffFromLabel(`v${prevVersion.versionNumber}`);
+            setDiffToLabel(`v${localVersions[vIdx].versionNumber}`);
+          }
+        } else if (vIdx === 0) {
+          // First version — diff against current
+          setVersionDiff(diffVersions(viewedRecipe, baseRecipe));
+          setDiffFromLabel(`v${localVersions[vIdx].versionNumber}`);
+          setDiffToLabel('Current');
+        } else {
+          setVersionDiff(null);
+        }
+
         // Load card for this version
         const versionNum = result.data.version ?? 1;
         const cardResult = await getRecipeCard(baseRecipe.id, versionNum);
@@ -246,7 +287,7 @@ export default function RecipeDetailClient({
     } finally {
       setLoadingVersion(false);
     }
-  }, [viewingVersionId, baseRecipe.id, baseRecipe.version]);
+  }, [viewingVersionId, baseRecipe, localVersions, versionRecipes]);
 
   const handleSaveDevNotes = useCallback(async () => {
     setSaving(true);
@@ -290,7 +331,7 @@ export default function RecipeDetailClient({
     setDialError(null);
     try {
       const body: Record<string, string> = { recipeId: recipe.id, direction, userId: '' };
-      if (selectedVersionId) body.fromVersionId = selectedVersionId;
+      if (viewingVersionId) body.fromVersionId = viewingVersionId;
       if (direction === 'custom_prompt' && promptText) body.customPrompt = promptText;
       const response = await fetch('/api/dial', {
         method: 'POST',
@@ -305,11 +346,21 @@ export default function RecipeDetailClient({
         const label = direction === 'custom_prompt' ? 'custom evolution' : direction.replace(/_/g, ' ');
         setMessage(`Dialled ${label}. ${data.changes || ''}`);
         if (direction === 'custom_prompt') setCustomDialPrompt('');
+        // Add new version to local state immediately
+        const newEntry: VersionHistoryEntry = {
+          id: data.versionId,
+          versionNumber: data.versionNumber,
+          createdAt: new Date().toISOString(),
+          dialDirection: direction === 'custom_prompt' ? 'custom_prompt' : direction,
+          fingerprint: recipe.fingerprint ?? null,
+          chefBrainVersion: null,
+        };
+        setLocalVersions(prev => [...prev, newEntry]);
         router.refresh();
       }
     } catch { setDialError('An error occurred. Please try again.'); }
     finally { setDialling(false); }
-  }, [recipe.id, selectedVersionId, router]);
+  }, [recipe.id, viewingVersionId, router]);
 
   const handleExport = useCallback(() => {
     const options: ExportOptions = { format: exportFormat };
@@ -375,104 +426,12 @@ export default function RecipeDetailClient({
     [unavailableIngredients, substitutionResults, recipe]
   );
 
-  const title = recipe.title;
-
   // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
 
   return (
     <div className="editorial" style={{ minHeight: '100vh' }}>
-
-      {/* ===== TOP BAR ===== */}
-      <div className="ed-topbar" style={{
-        padding: '20px 48px',
-        borderBottom: '1px solid var(--ed-border)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        position: 'sticky',
-        top: 0,
-        background: 'var(--ed-bg)',
-        zIndex: 10,
-      }}>
-        <div>
-          <span style={{
-            fontSize: 'var(--ed-fs-body)',
-            fontWeight: 600,
-            color: 'var(--ed-text-primary)',
-          }}>{title}</span>
-          <span style={{
-            fontSize: 'var(--ed-fs-micro)',
-            color: 'var(--ed-text-muted)',
-            letterSpacing: '0.04em',
-            fontFamily: 'monospace',
-            display: 'block',
-            marginTop: '4px',
-          }}>{recipe.id}</span>
-          {/* View mode toggle */}
-          {recipeCard && (
-            <div style={{ display: 'flex', gap: '0', marginTop: '8px' }}>
-              <button type="button" onClick={() => setViewMode('detail')}
-                style={{
-                  fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
-                  fontFamily: 'var(--ed-font)', padding: '4px 10px', cursor: 'pointer', transition: 'all 0.12s',
-                  border: '1px solid var(--ed-border)', borderRight: 'none',
-                  background: viewMode === 'detail' ? 'var(--ed-text-primary)' : 'transparent',
-                  color: viewMode === 'detail' ? 'var(--ed-bg)' : 'var(--ed-text-muted)',
-                }}>Detail</button>
-              <button type="button" onClick={() => setViewMode('cookbook')}
-                style={{
-                  fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
-                  fontFamily: 'var(--ed-font)', padding: '4px 10px', cursor: 'pointer', transition: 'all 0.12s',
-                  border: '1px solid var(--ed-border)',
-                  background: viewMode === 'cookbook' ? 'var(--ed-text-primary)' : 'transparent',
-                  color: viewMode === 'cookbook' ? 'var(--ed-bg)' : 'var(--ed-text-muted)',
-                }}>Cookbook</button>
-            </div>
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            type="button"
-            className="btn btn-danger"
-            onClick={handleDelete}
-            style={{
-              fontFamily: 'var(--ed-font)',
-              fontSize: 'var(--ed-fs-micro)',
-              fontWeight: 600,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              padding: '8px 16px',
-              border: '1px solid #DDD0CE',
-              background: 'transparent',
-              color: '#B03A2A',
-              cursor: 'pointer',
-              transition: 'all 0.12s',
-            }}
-          >Delete</button>
-          {!cooked && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleMarkCooked}
-              style={{
-                fontFamily: 'var(--ed-font)',
-                fontSize: 'var(--ed-fs-micro)',
-                fontWeight: 600,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                padding: '8px 16px',
-                border: '1px solid var(--ed-text-primary)',
-                background: 'var(--ed-text-primary)',
-                color: 'var(--ed-bg)',
-                cursor: 'pointer',
-                transition: 'all 0.12s',
-              }}
-            >Mark Cooked</button>
-          )}
-        </div>
-      </div>
 
       {/* Message */}
       {message && (
@@ -489,13 +448,20 @@ export default function RecipeDetailClient({
       {/* ===== APP LAYOUT: content + side panel ===== */}
       <div className="ed-app-layout" style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 280px',
+        gridTemplateColumns: '1fr 300px',
         gap: 0,
         alignItems: 'start',
       }}>
 
         {/* ===== MAIN CONTENT (left, scrollable) ===== */}
         <div className="ed-main-content" style={{ padding: '0 48px 100px', overflow: 'auto' }}>
+
+          {/* Back link */}
+          <button type="button" onClick={() => router.push('/library')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--ed-font)', fontSize: '11px', color: 'var(--ed-text-muted)', display: 'flex', alignItems: 'center', gap: '4px', padding: '24px 0 0', transition: 'color 0.12s' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--ed-text-primary)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--ed-text-muted)'; }}
+          >← Library</button>
 
           {/* Editorial Header */}
           <EditorialHeader
@@ -511,6 +477,33 @@ export default function RecipeDetailClient({
             activeTime={recipe.intent?.active_time_minutes}
             prepAheadNotes={recipe.intent?.prep_ahead_notes}
           />
+
+          {/* Quick actions under title */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '16px 0 16px', borderBottom: '1px solid var(--ed-border)' }}>
+            {!cooked ? (
+              <button type="button" onClick={handleMarkCooked}
+                style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', padding: '6px 14px', border: '1px solid var(--ed-text-primary)', background: 'var(--ed-text-primary)', color: 'var(--ed-bg)', cursor: 'pointer', fontFamily: 'var(--ed-font)', textTransform: 'uppercase', transition: 'opacity 150ms' }}
+                onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+              >Mark Cooked</button>
+            ) : (
+              <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ed-text-muted)', padding: '6px 0' }}>✓ Cooked</span>
+            )}
+            <button type="button" onClick={handleGenerateRecipeCard} disabled={generatingCard || !hasStructuredData}
+              style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', padding: '6px 14px', border: '1px solid var(--ed-border)', background: 'transparent', color: 'var(--ed-text-primary)', cursor: generatingCard || !hasStructuredData ? 'not-allowed' : 'pointer', fontFamily: 'var(--ed-font)', textTransform: 'uppercase', transition: 'all 0.12s', opacity: generatingCard || !hasStructuredData ? 0.4 : 1 }}
+              onMouseEnter={(e) => { if (!generatingCard && hasStructuredData) e.currentTarget.style.opacity = '0.7'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = (generatingCard || !hasStructuredData) ? '0.4' : '1'; }}
+            >{generatingCard ? 'Generating…' : recipeCard ? 'Regenerate Card' : 'Add to Cookbook'}</button>
+            {cardError && (<span style={{ fontSize: '10px', color: '#B03A2A', alignSelf: 'center' }}>{cardError}</span>)}
+            {recipeCard && (
+              <div style={{ display: 'flex', gap: '0', marginLeft: 'auto' }}>
+                <button type="button" onClick={() => setViewMode('detail')}
+                  style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'var(--ed-font)', padding: '4px 10px', cursor: 'pointer', transition: 'all 0.12s', border: '1px solid var(--ed-border)', borderRight: 'none', background: viewMode === 'detail' ? 'var(--ed-text-primary)' : 'transparent', color: viewMode === 'detail' ? 'var(--ed-bg)' : 'var(--ed-text-muted)' }}>Detail</button>
+                <button type="button" onClick={() => setViewMode('cookbook')}
+                  style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'var(--ed-font)', padding: '4px 10px', cursor: 'pointer', transition: 'all 0.12s', border: '1px solid var(--ed-border)', background: viewMode === 'cookbook' ? 'var(--ed-text-primary)' : 'transparent', color: viewMode === 'cookbook' ? 'var(--ed-bg)' : 'var(--ed-text-muted)' }}>Cookbook</button>
+              </div>
+            )}
+          </div>
 
           {viewMode === 'cookbook' && recipeCard ? (
             /* ===== COOKBOOK CARD VIEW ===== */
@@ -859,120 +852,171 @@ export default function RecipeDetailClient({
         <aside className="ed-side-panel" style={{
           borderLeft: '1px solid var(--ed-border)',
           position: 'sticky',
-          top: '61px',
-          height: 'calc(100vh - 61px)',
+          top: '0',
+          height: '100vh',
           overflowY: 'auto',
         }}>
 
-          {/* The Dial */}
+          {/* Evolve */}
           <div style={panelSectionStyle}>
-            <h3 style={sectionLabelStyle}>The Dial</h3>
-            {versions.length > 0 && (
-              <div style={{ marginBottom: '12px' }}>
-                <label htmlFor="dial-version" style={{ display: 'block', fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-muted)', marginBottom: '4px' }}>
-                  Dial from version:
-                </label>
-                <select id="dial-version" value={selectedVersionId ?? ''} onChange={(e) => setSelectedVersionId(e.target.value || null)}
-                  style={{ ...inputStyle, cursor: 'pointer', fontSize: 'var(--ed-fs-small)' }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }}>
-                  <option value="">Current (latest)</option>
-                  {versions.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      v{v.versionNumber}{v.dialDirection ? ` — ${v.dialDirection.replace(/_/g, ' ')}` : ' — original'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <h3 style={sectionLabelStyle}>Evolve</h3>
+
+            {/* Direction preset badges */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '10px' }}>
               {DIAL_DIRECTIONS.map((d) => (
                 <button key={d.value} type="button" onClick={() => handleDial(d.value)} disabled={dialling}
-                  style={{ ...dialBtnStyle, opacity: dialling ? 0.4 : 1 }}
-                  onMouseEnter={(e) => { if (!dialling) { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; } }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }}>
-                  {d.label}
-                </button>
+                  style={{
+                    fontFamily: 'var(--ed-font)', fontSize: '9px', fontWeight: 600,
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                    padding: '4px 8px', border: '1px solid var(--ed-border)',
+                    background: 'transparent', color: 'var(--ed-text-muted)',
+                    cursor: dialling ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.12s', lineHeight: '1', borderRadius: '1px',
+                    opacity: dialling ? 0.4 : 1,
+                  }}
+                  onMouseEnter={(e) => { if (!dialling) { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; e.currentTarget.style.color = 'var(--ed-text-primary)'; } }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; e.currentTarget.style.color = 'var(--ed-text-muted)'; }}
+                >{d.label}</button>
               ))}
             </div>
-            {/* Riff Mode — full width */}
-            <button type="button" onClick={() => handleDial('riff_mode')} disabled={dialling}
+
+            {/* Freeform input */}
+            <textarea
+              value={customDialPrompt}
+              onChange={(e) => setCustomDialPrompt(e.target.value)}
+              placeholder="Or describe a direction…"
+              disabled={dialling}
               style={{
-                ...dialBtnStyle,
-                width: '100%',
-                marginTop: '8px',
-                fontWeight: 600,
-                borderColor: 'var(--ed-text-primary)',
-                color: 'var(--ed-text-primary)',
-                opacity: dialling ? 0.4 : 1,
+                fontFamily: 'var(--ed-font)', fontSize: '11px', width: '100%',
+                border: '1px solid var(--ed-border)', padding: '8px 10px',
+                color: 'var(--ed-text-primary)', background: 'var(--ed-bg)',
+                outline: 'none', resize: 'none', height: '52px', lineHeight: '1.5',
+                transition: 'border-color 0.12s', boxSizing: 'border-box',
               }}
-              onMouseEnter={(e) => { if (!dialling) { e.currentTarget.style.opacity = '0.7'; } }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = dialling ? '0.4' : '1'; }}>
-              Riff Mode
-            </button>
-            {/* Custom prompt input */}
-            <div style={{ marginTop: '12px', borderTop: '1px solid var(--ed-border)', paddingTop: '12px' }}>
-              <textarea
-                value={customDialPrompt}
-                onChange={(e) => setCustomDialPrompt(e.target.value)}
-                placeholder="Describe how you want to modify this recipe…"
-                rows={3}
-                disabled={dialling}
-                style={{
-                  width: '100%',
-                  background: 'none',
-                  border: '1px solid var(--ed-border)',
-                  padding: '8px 10px',
-                  fontSize: '11px',
-                  fontFamily: 'var(--ed-font)',
-                  color: 'var(--ed-text-primary)',
-                  outline: 'none',
-                  resize: 'vertical',
-                  lineHeight: 1.6,
-                  transition: 'border-color 200ms',
-                }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && customDialPrompt.trim()) {
-                    handleDial('custom_prompt', customDialPrompt.trim());
-                  }
-                }}
-              />
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && customDialPrompt.trim()) {
+                  handleDial('custom_prompt', customDialPrompt.trim());
+                }
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+              <span style={{ fontSize: '9px', color: 'var(--ed-text-muted)', fontStyle: 'italic' }}>⌘↵ to push</span>
               <button
                 type="button"
                 onClick={() => handleDial('custom_prompt', customDialPrompt.trim())}
                 disabled={dialling || !customDialPrompt.trim()}
                 style={{
-                  ...dialBtnStyle,
-                  width: '100%',
-                  marginTop: '6px',
-                  fontWeight: 600,
-                  borderColor: customDialPrompt.trim() ? 'var(--ed-text-primary)' : 'var(--ed-border)',
-                  color: customDialPrompt.trim() ? 'var(--ed-text-primary)' : 'var(--ed-text-muted)',
-                  opacity: dialling || !customDialPrompt.trim() ? 0.4 : 1,
+                  fontFamily: 'var(--ed-font)', fontSize: '9px', fontWeight: 600,
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  padding: '7px 14px', border: '1px solid var(--ed-text-primary)',
+                  background: 'var(--ed-text-primary)', color: 'var(--ed-bg)',
+                  cursor: (dialling || !customDialPrompt.trim()) ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.12s',
+                  opacity: (dialling || !customDialPrompt.trim()) ? 0.4 : 1,
                 }}
-                onMouseEnter={(e) => { if (!dialling && customDialPrompt.trim()) e.currentTarget.style.opacity = '0.7'; }}
+                onMouseEnter={(e) => { if (!dialling && customDialPrompt.trim()) e.currentTarget.style.opacity = '0.8'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.opacity = (dialling || !customDialPrompt.trim()) ? '0.4' : '1'; }}
-              >
-                Evolve Recipe
-              </button>
-              <p style={{ fontSize: '10px', color: 'var(--ed-text-muted)', marginTop: '4px', fontStyle: 'italic' }}>
-                ⌘+Enter to submit
-              </p>
+              >Push →</button>
             </div>
-            {dialling && <p style={{ marginTop: '8px', fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-secondary)' }}>Evolving recipe…</p>}
-            {dialError && <p style={{ marginTop: '8px', fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-primary)' }}>{dialError}</p>}
+            {dialling && <p style={{ marginTop: '6px', fontSize: '11px', color: 'var(--ed-text-secondary)' }}>Evolving recipe…</p>}
+            {dialError && <p style={{ marginTop: '6px', fontSize: '11px', color: '#B03A2A' }}>{dialError}</p>}
           </div>
+
+          {/* History — Tree View */}
+          <div style={panelSectionStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
+              <h3 style={{ ...sectionLabelStyle, margin: 0 }}>History</h3>
+              <span style={{ fontSize: '10px', color: 'var(--ed-text-muted)', fontStyle: 'italic' }}>{localVersions.length} version{localVersions.length !== 1 ? 's' : ''}</span>
+            </div>
+            {loadingVersion && (<p style={{ fontSize: '11px', color: 'var(--ed-text-secondary)', marginBottom: '8px' }}>Loading…</p>)}
+            {localVersions.length === 0 ? (
+              <p style={{ fontSize: '11px', color: 'var(--ed-text-muted)', fontStyle: 'italic' }}>No versions yet. Push to create one.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {[...localVersions].reverse().map((v, idx) => {
+                  const isViewing = viewingVersionId === v.id;
+                  const isLast = idx === localVersions.length - 1;
+                  return (
+                    <div key={v.id} style={{ display: 'flex', alignItems: 'stretch' }}>
+                      <div style={{ width: '24px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+                        {idx > 0 && <div style={{ width: '1.5px', height: '6px', background: 'var(--ed-border)' }} />}
+                        {idx === 0 && <div style={{ height: '11px' }} />}
+                        <div style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, position: 'relative', zIndex: 1, border: isViewing ? '1.5px solid var(--ed-accent, #C4400A)' : '1.5px solid var(--ed-border)', background: isViewing ? 'var(--ed-accent, #C4400A)' : 'var(--ed-bg)', transition: 'all 0.12s' }} />
+                        {!isLast ? (<div style={{ width: '1.5px', flex: 1, background: 'var(--ed-border)', marginTop: '2px' }} />) : (<div style={{ flex: 1 }} />)}
+                      </div>
+                      <button type="button" disabled={loadingVersion}
+                        style={{ flex: 1, padding: '5px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: 0, borderRadius: '2px', background: isViewing ? 'var(--ed-bg-warm, #FDF3EF)' : 'transparent', cursor: 'pointer', border: 'none', textAlign: 'left', fontFamily: 'var(--ed-font)' }}
+                        onClick={() => handleViewVersion(isViewing ? null : v.id)}
+                      >
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <span style={{ fontSize: '11px', fontWeight: isViewing ? 600 : 400, color: isViewing ? 'var(--ed-text-primary)' : 'var(--ed-text-secondary)', display: 'block' }}>v{v.versionNumber}</span>
+                          {v.dialDirection && (<span style={{ fontSize: '9px', color: 'var(--ed-text-muted)', fontStyle: 'italic', display: 'block', marginTop: '1px' }}>{v.dialDirection.replace(/_/g, ' ')}</span>)}
+                          <span style={{ fontSize: '9px', color: 'var(--ed-text-muted)', display: 'block', marginTop: '1px' }}>{new Date(v.createdAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, paddingLeft: '6px' }}>
+                          {isViewing && (
+                            <span style={{ fontSize: '8px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ed-accent, #C4400A)' }}>Viewing</span>
+                          )}
+                        </div>
+                      </button>
+                      {isViewing && localVersions.length > 1 && (
+                        <button type="button" onClick={async (e) => {
+                          e.stopPropagation();
+                          const result = await deleteVersion(v.id);
+                          if (result.success) {
+                            setLocalVersions(prev => prev.filter(ver => ver.id !== v.id));
+                            setViewingVersionId(null);
+                            setVersionRecipe(null);
+                            setVersionDiff(null);
+                          } else { setMessage(result.error); }
+                        }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', fontSize: '11px', color: 'var(--ed-text-muted)', opacity: 0.5, transition: 'opacity 0.12s', alignSelf: 'center' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#B03A2A'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5'; e.currentTarget.style.color = 'var(--ed-text-muted)'; }}
+                          title="Delete this version"
+                        >×</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* What Changed — Diff */}
+          {versionDiff && (
+            <div style={panelSectionStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
+                <h3 style={{ ...sectionLabelStyle, margin: 0 }}>What changed</h3>
+                <span style={{ fontSize: '10px', color: 'var(--ed-text-muted)', fontStyle: 'italic' }}>
+                  {diffFromLabel} → {diffToLabel}
+                </span>
+              </div>
+              {versionDiff.componentsChanged.map((comp) => (
+                <div key={comp.name} style={{ marginBottom: '10px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ed-text-primary)', display: 'block', marginBottom: '6px' }}>{comp.name}</span>
+                  {comp.ingredientsRemoved.length > 0 && (<div style={{ marginBottom: '4px' }}><span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 6px', display: 'inline-block', background: '#FDF2F0', color: '#8B2A1C', marginBottom: '4px' }}>Removed</span><div style={{ fontSize: '11px', padding: '5px 8px', lineHeight: '1.45', background: '#FDF2F0', color: '#8B2A1C', textDecoration: 'line-through', opacity: 0.7 }}>{comp.ingredientsRemoved.join(', ')}</div></div>)}
+                  {comp.ingredientsAdded.length > 0 && (<div style={{ marginBottom: '4px' }}><span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 6px', display: 'inline-block', background: '#EFF6F1', color: '#2A6B3C', marginBottom: '4px' }}>Added</span><div style={{ fontSize: '11px', padding: '5px 8px', lineHeight: '1.45', background: '#EFF6F1', color: '#2A6B3C' }}>{comp.ingredientsAdded.join(', ')}</div></div>)}
+                  {comp.ingredientsChanged.length > 0 && (<div style={{ marginBottom: '4px' }}><span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 6px', display: 'inline-block', background: '#FFF8EE', color: '#7A5010', marginBottom: '4px' }}>Changed</span><div style={{ fontSize: '11px', padding: '5px 8px', lineHeight: '1.45', background: '#FFF8EE', color: '#7A5010' }}>{comp.ingredientsChanged.join(', ')}</div></div>)}
+                  {comp.stepsChanged && (<div><span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 6px', display: 'inline-block', background: '#FFF8EE', color: '#7A5010' }}>Steps modified</span></div>)}
+                </div>
+              ))}
+              {versionDiff.componentsAdded.length > 0 && (<div style={{ marginBottom: '10px' }}><span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 6px', display: 'inline-block', background: '#EFF6F1', color: '#2A6B3C', marginBottom: '4px' }}>New components</span><div style={{ fontSize: '11px', padding: '5px 8px', lineHeight: '1.45', background: '#EFF6F1', color: '#2A6B3C' }}>{versionDiff.componentsAdded.join(', ')}</div></div>)}
+              {versionDiff.componentsRemoved.length > 0 && (<div style={{ marginBottom: '10px' }}><span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 6px', display: 'inline-block', background: '#FDF2F0', color: '#8B2A1C', marginBottom: '4px' }}>Removed components</span><div style={{ fontSize: '11px', padding: '5px 8px', lineHeight: '1.45', background: '#FDF2F0', color: '#8B2A1C', textDecoration: 'line-through', opacity: 0.7 }}>{versionDiff.componentsRemoved.join(', ')}</div></div>)}
+              {versionDiff.flavourChanged && (<div style={{ marginBottom: '4px' }}><span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 6px', display: 'inline-block', background: '#FFF8EE', color: '#7A5010' }}>Flavour architecture changed</span></div>)}
+              {versionDiff.thinkingChanged && (<div><span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 6px', display: 'inline-block', background: '#FFF8EE', color: '#7A5010' }}>Thinking updated</span></div>)}
+              {versionDiff.componentsChanged.length === 0 && versionDiff.componentsAdded.length === 0 && versionDiff.componentsRemoved.length === 0 && !versionDiff.flavourChanged && !versionDiff.thinkingChanged && (<p style={{ fontSize: '11px', color: 'var(--ed-text-muted)', fontStyle: 'italic' }}>No structural changes detected.</p>)}
+            </div>
+          )}
 
           {/* Ingredient Substitutions */}
           <div style={panelSectionStyle}>
             <h3 style={sectionLabelStyle}>Substitutions</h3>
             {recipe.components.map((comp: Recipe['components'][0]) => (
               <div key={comp.name} style={{ marginBottom: '12px' }}>
-                <h4 style={{ fontSize: 'var(--ed-fs-small)', fontWeight: 600, color: 'var(--ed-text-muted)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
-                  {comp.name}
-                </h4>
+                <h4 style={{ fontSize: 'var(--ed-fs-small)', fontWeight: 600, color: 'var(--ed-text-muted)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.14em' }}>{comp.name}</h4>
                 <div>
                   {comp.ingredients.map((ing: Recipe['components'][0]['ingredients'][0]) => {
                     const isUnavailable = unavailableIngredients.has(ing.name);
@@ -980,45 +1024,12 @@ export default function RecipeDetailClient({
                     const isLoading = substitutionLoading === ing.name;
                     return (
                       <div key={ing.name} style={{ marginBottom: '4px' }}>
-                        <label style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          fontSize: 'var(--ed-fs-small)',
-                          color: isUnavailable ? 'var(--ed-text-muted)' : 'var(--ed-text-primary)',
-                          cursor: 'pointer',
-                          textDecoration: isUnavailable ? 'line-through' : 'none',
-                        }}>
-                          <input
-                            type="checkbox"
-                            checked={isUnavailable}
-                            onChange={() => handleToggleUnavailable(ing.name, ing)}
-                            style={{
-                              width: '16px',
-                              height: '16px',
-                              border: '1px solid var(--ed-border)',
-                              borderRadius: '2px',
-                              cursor: 'pointer',
-                              accentColor: 'var(--ed-text-primary)',
-                            }}
-                          />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'var(--ed-fs-small)', color: isUnavailable ? 'var(--ed-text-muted)' : 'var(--ed-text-primary)', cursor: 'pointer', textDecoration: isUnavailable ? 'line-through' : 'none' }}>
+                          <input type="checkbox" checked={isUnavailable} onChange={() => handleToggleUnavailable(ing.name, ing)} style={{ width: '16px', height: '16px', border: '1px solid var(--ed-border)', borderRadius: '2px', cursor: 'pointer', accentColor: 'var(--ed-text-primary)' }} />
                           {ing.name}
                         </label>
-                        {isLoading && (
-                          <div style={{ marginLeft: '24px', marginTop: '2px', fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-secondary)' }}>
-                            Finding alternatives…
-                          </div>
-                        )}
-                        {isUnavailable && subs && subs.length > 0 && (
-                          <div style={{ marginLeft: '24px', marginTop: '2px' }}>
-                            {subs.map((sub, i) => (
-                              <div key={i} style={{ fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-secondary)', padding: '1px 0' }}>
-                                ↳ {sub.amount} {sub.unit} {sub.name}
-                                {sub.notes && <span style={{ color: 'var(--ed-text-muted)' }}> — {sub.notes}</span>}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        {isLoading && (<div style={{ marginLeft: '24px', marginTop: '2px', fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-secondary)' }}>Finding alternatives…</div>)}
+                        {isUnavailable && subs && subs.length > 0 && (<div style={{ marginLeft: '24px', marginTop: '2px' }}>{subs.map((sub, i) => (<div key={i} style={{ fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-secondary)', padding: '1px 0' }}>↳ {sub.amount} {sub.unit} {sub.name}{sub.notes && <span style={{ color: 'var(--ed-text-muted)' }}> — {sub.notes}</span>}</div>))}</div>)}
                       </div>
                     );
                   })}
@@ -1027,271 +1038,66 @@ export default function RecipeDetailClient({
             ))}
           </div>
 
-          {/* Tags */}
+          {/* Version Note */}
           <div style={panelSectionStyle}>
-            <h3 style={sectionLabelStyle}>Tags</h3>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
-              {tags.map((tag) => (
-                <span key={tag} style={{ fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                  {tag}
-                  <button type="button" onClick={() => handleRemoveTag(tag)}
-                    style={{ ...textBtnStyle, fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-muted)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; }}
-                    aria-label={`Remove tag ${tag}`}>×</button>
-                </span>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-              <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddTag()} placeholder="Add a tag…"
-                style={{ ...inputStyle, fontSize: 'var(--ed-fs-small)' }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }} />
-              <button type="button" onClick={handleAddTag} style={{ ...textBtnStyle, fontSize: 'var(--ed-fs-small)' }}
-                onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; }}>Add</button>
-            </div>
-          </div>
-
-          {/* Version History */}
-          <div style={panelSectionStyle}>
-            <h3 style={sectionLabelStyle}>Version History</h3>
-            {loadingVersion && (
-              <p style={{ fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-secondary)', marginBottom: '8px' }}>Loading version…</p>
-            )}
-            {/* Current (base) version — always shown */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '8px 0',
-              borderBottom: '1px solid var(--ed-border)',
-              fontSize: 'var(--ed-fs-small)',
-              background: !viewingVersionId ? 'var(--ed-bg-warm)' : 'transparent',
-              marginLeft: !viewingVersionId ? '-24px' : 0,
-              marginRight: !viewingVersionId ? '-24px' : 0,
-              paddingLeft: !viewingVersionId ? '24px' : 0,
-              paddingRight: !viewingVersionId ? '24px' : 0,
-            }}>
-              <div>
-                <span style={{ fontWeight: 600, color: 'var(--ed-text-primary)' }}>Current</span>
-                <div style={{ fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-muted)', marginTop: '1px' }}>
-                  Latest saved version
-                </div>
-              </div>
-              {viewingVersionId && (
-                <button
-                  type="button"
-                  onClick={() => handleViewVersion(null)}
-                  disabled={loadingVersion}
-                  style={{
-                    ...textBtnStyle,
-                    fontSize: '10px',
-                    fontWeight: 600,
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    color: 'var(--ed-accent)',
-                    opacity: loadingVersion ? 0.4 : 1,
-                  }}
-                  onMouseEnter={(e) => { if (!loadingVersion) e.currentTarget.style.opacity = '0.7'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.opacity = loadingVersion ? '0.4' : '1'; }}
-                >
-                  View
-                </button>
-              )}
-              {!viewingVersionId && (
-                <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ed-accent)' }}>
-                  Viewing
-                </span>
-              )}
-            </div>
-            {versions.length === 0 ? (
-              <p style={{ fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-muted)', margin: '8px 0 0' }}>No dial versions yet.</p>
-            ) : (
-              <div>
-                {versions.map((v) => {
-                  const isViewing = viewingVersionId === v.id;
-                  return (
-                    <div key={v.id} style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '8px 0',
-                      borderBottom: '1px solid var(--ed-border)',
-                      fontSize: 'var(--ed-fs-small)',
-                      background: isViewing ? 'var(--ed-bg-warm)' : 'transparent',
-                      marginLeft: isViewing ? '-24px' : 0,
-                      marginRight: isViewing ? '-24px' : 0,
-                      paddingLeft: isViewing ? '24px' : 0,
-                      paddingRight: isViewing ? '24px' : 0,
-                    }}>
-                      <div>
-                        <span style={{ fontWeight: 600, color: 'var(--ed-text-primary)' }}>v{v.versionNumber}</span>
-                        {v.dialDirection && (
-                          <span style={{ marginLeft: '6px', color: isViewing ? 'var(--ed-accent)' : 'var(--ed-text-secondary)' }}>
-                            {v.dialDirection.replace(/_/g, ' ')}
-                          </span>
-                        )}
-                        <div style={{ fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-muted)', marginTop: '1px' }}>
-                          {new Date(v.createdAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleViewVersion(isViewing ? null : v.id)}
-                        disabled={loadingVersion}
-                        style={{
-                          ...textBtnStyle,
-                          fontSize: '10px',
-                          fontWeight: 600,
-                          letterSpacing: '0.1em',
-                          textTransform: 'uppercase',
-                          color: isViewing ? 'var(--ed-accent)' : 'var(--ed-text-muted)',
-                          opacity: loadingVersion ? 0.4 : 1,
-                        }}
-                        onMouseEnter={(e) => { if (!loadingVersion) e.currentTarget.style.opacity = '0.7'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.opacity = loadingVersion ? '0.4' : '1'; }}
-                      >
-                        {isViewing ? 'Viewing' : 'View'}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            {versions.some((v) => v.dialDirection) && (
-              <div style={{ marginTop: '12px' }}>
-                <h4 style={{ ...sectionLabelStyle, fontSize: 'var(--ed-fs-micro)', marginBottom: '8px' }}>Dial History</h4>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {versions.filter((v) => v.dialDirection).map((v) => (
-                    <span key={v.id} style={{ fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-secondary)' }}>
-                      v{v.versionNumber}: {v.dialDirection?.replace(/_/g, ' ')}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Dev Notes */}
-          <div style={panelSectionStyle}>
-            <h3 style={sectionLabelStyle}>Dev Notes</h3>
-            <textarea value={devNotes} onChange={(e) => setDevNotes(e.target.value)}
-              placeholder="What worked, what to try next…" rows={3}
-              style={{ ...inputStyle, borderBottom: '1px solid var(--ed-border)', resize: 'vertical', lineHeight: 1.6, fontSize: 'var(--ed-fs-small)' }}
+            <h3 style={{ ...sectionLabelStyle, marginBottom: '10px' }}>Version note</h3>
+            <textarea value={devNotes} onChange={(e) => setDevNotes(e.target.value)} placeholder="What you changed and why…"
+              style={{ fontFamily: 'var(--ed-font)', fontSize: '11px', width: '100%', border: '1px solid var(--ed-border)', padding: '8px 10px', color: 'var(--ed-text-primary)', background: 'var(--ed-bg)', outline: 'none', resize: 'none', height: '48px', lineHeight: '1.5', boxSizing: 'border-box' }}
               onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }} />
-            <button type="button" onClick={handleSaveDevNotes} disabled={saving}
-              style={{ ...textBtnStyle, marginTop: '8px', fontSize: 'var(--ed-fs-small)', opacity: saving ? 0.4 : 0.8 }}
-              onMouseEnter={(e) => { if (!saving) e.currentTarget.style.opacity = '1'; }}
-              onMouseLeave={(e) => { if (!saving) e.currentTarget.style.opacity = '0.8'; }}>
-              {saving ? 'Saving…' : 'Save Notes'}
-            </button>
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+              <button type="button" onClick={handleSaveDevNotes} disabled={saving}
+                style={{ fontFamily: 'var(--ed-font)', fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '6px 12px', border: '1px solid var(--ed-border)', background: 'transparent', color: 'var(--ed-text-secondary)', cursor: saving ? 'not-allowed' : 'pointer', transition: 'all 0.12s', opacity: saving ? 0.4 : 1 }}
+                onMouseEnter={(e) => { if (!saving) { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; e.currentTarget.style.color = 'var(--ed-text-primary)'; } }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; e.currentTarget.style.color = 'var(--ed-text-secondary)'; }}
+              >{saving ? 'Saving…' : 'Save note'}</button>
+            </div>
           </div>
 
-          {/* Cookbook Card */}
+          {/* Actions */}
           <div style={panelSectionStyle}>
-            <h3 style={sectionLabelStyle}>Cookbook</h3>
-            <button
-              type="button"
-              onClick={handleGenerateRecipeCard}
-              disabled={generatingCard || !hasStructuredData}
-              title={!hasStructuredData ? 'Recipe needs structured data to generate a cookbook card.' : undefined}
-              style={{
-                width: '100%',
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.08em',
-                padding: '9px 8px',
-                border: '1px solid var(--ed-text-primary)',
-                background: 'var(--ed-text-primary)',
-                color: 'var(--ed-bg)',
-                cursor: generatingCard || !hasStructuredData ? 'not-allowed' : 'pointer',
-                fontFamily: 'var(--ed-font)',
-                textTransform: 'uppercase',
-                transition: 'opacity 150ms',
-                opacity: generatingCard || !hasStructuredData ? 0.4 : 1,
-              }}
-              onMouseEnter={(e) => { if (!generatingCard && hasStructuredData) e.currentTarget.style.opacity = '0.7'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = (generatingCard || !hasStructuredData) ? '0.4' : '1'; }}>
-              {generatingCard ? 'Generating…' : recipeCard ? 'Regenerate Card' : 'Add to Cookbook'}
-            </button>
-            {cardError && (
-              <p style={{ marginTop: '8px', fontSize: 'var(--ed-fs-small)', color: '#B03A2A' }}>{cardError}</p>
-            )}
-          </div>
-
-          {/* Export */}
-          <div style={panelSectionStyle}>
-            <h3 style={sectionLabelStyle}>Export</h3>
-            <button type="button" onClick={() => setShowExportPanel(!showExportPanel)}
-              style={{
-                width: '100%',
-                fontSize: '11px',
-                fontWeight: 500,
-                letterSpacing: '0.08em',
-                padding: '9px 8px',
-                border: '1px solid var(--ed-text-primary)',
-                background: 'transparent',
-                color: 'var(--ed-text-primary)',
-                cursor: 'pointer',
-                fontFamily: 'var(--ed-font)',
-                textTransform: 'uppercase',
-                transition: 'opacity 150ms',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
-              {showExportPanel ? 'Hide Export Options' : 'Export Recipe'}
-            </button>
-            <div style={{ display: 'grid', gridTemplateRows: showExportPanel ? '1fr' : '0fr', transition: 'grid-template-rows 200ms ease-out' }}>
-              <div style={{ overflow: 'hidden' }}>
-                <div style={{ paddingTop: '16px' }}>
-                  <div style={{ marginBottom: '12px' }}>
-                    <label htmlFor="export-format" style={{ display: 'block', fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-muted)', marginBottom: '4px' }}>Format</label>
-                    <select id="export-format" value={exportFormat} onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'markdown')}
-                      style={{ ...inputStyle, cursor: 'pointer', fontSize: 'var(--ed-fs-small)' }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }}>
-                      <option value="pdf">PDF (HTML)</option>
-                      <option value="markdown">Markdown</option>
-                    </select>
+            <h3 style={sectionLabelStyle}>Actions</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <button type="button" onClick={() => setShowExportPanel(!showExportPanel)}
+                style={{ width: '100%', fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', padding: '8px 8px', border: '1px solid var(--ed-border)', background: 'transparent', color: 'var(--ed-text-primary)', cursor: 'pointer', fontFamily: 'var(--ed-font)', textTransform: 'uppercase', transition: 'all 0.12s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; e.currentTarget.style.opacity = '0.7'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; e.currentTarget.style.opacity = '1'; }}
+              >{showExportPanel ? 'Hide Export Options' : 'Export Recipe'}</button>
+              <div style={{ display: 'grid', gridTemplateRows: showExportPanel ? '1fr' : '0fr', transition: 'grid-template-rows 200ms ease-out' }}>
+                <div style={{ overflow: 'hidden' }}>
+                  <div style={{ paddingTop: '10px' }}>
+                    <div style={{ marginBottom: '10px' }}>
+                      <label htmlFor="export-format" style={{ display: 'block', fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-muted)', marginBottom: '4px' }}>Format</label>
+                      <select id="export-format" value={exportFormat} onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'markdown')}
+                        style={{ ...inputStyle, cursor: 'pointer', fontSize: 'var(--ed-fs-small)' }}
+                        onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; }}
+                        onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }}>
+                        <option value="pdf">PDF (HTML)</option>
+                        <option value="markdown">Markdown</option>
+                      </select>
+                    </div>
+                    <div style={{ marginBottom: '10px' }}>
+                      <label htmlFor="branding-name" style={{ display: 'block', fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-muted)', marginBottom: '4px' }}>Your Name</label>
+                      <input id="branding-name" type="text" value={exportBrandingName} onChange={(e) => setExportBrandingName(e.target.value)} placeholder="Your name" style={{ ...inputStyle, fontSize: 'var(--ed-fs-small)' }} onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }} />
+                    </div>
+                    <div style={{ marginBottom: '10px' }}>
+                      <label htmlFor="branding-business" style={{ display: 'block', fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-muted)', marginBottom: '4px' }}>Business Name (optional)</label>
+                      <input id="branding-business" type="text" value={exportBrandingBusiness} onChange={(e) => setExportBrandingBusiness(e.target.value)} placeholder="Business name" style={{ ...inputStyle, fontSize: 'var(--ed-fs-small)' }} onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }} />
+                    </div>
+                    <button type="button" onClick={handleExport}
+                      style={{ width: '100%', fontSize: '10px', fontWeight: 500, letterSpacing: '0.08em', padding: '8px 8px', border: '1px solid var(--ed-border)', background: 'transparent', color: 'var(--ed-text-secondary)', cursor: 'pointer', fontFamily: 'var(--ed-font)', textTransform: 'uppercase', transition: 'border-color 200ms' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }}
+                    >Download {exportFormat === 'pdf' ? 'HTML' : 'Markdown'}</button>
                   </div>
-                  <div style={{ marginBottom: '12px' }}>
-                    <label htmlFor="branding-name" style={{ display: 'block', fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-muted)', marginBottom: '4px' }}>Your Name</label>
-                    <input id="branding-name" type="text" value={exportBrandingName} onChange={(e) => setExportBrandingName(e.target.value)}
-                      placeholder="Your name" style={{ ...inputStyle, fontSize: 'var(--ed-fs-small)' }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }} />
-                  </div>
-                  <div style={{ marginBottom: '12px' }}>
-                    <label htmlFor="branding-business" style={{ display: 'block', fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-muted)', marginBottom: '4px' }}>Business Name (optional)</label>
-                    <input id="branding-business" type="text" value={exportBrandingBusiness} onChange={(e) => setExportBrandingBusiness(e.target.value)}
-                      placeholder="Business name" style={{ ...inputStyle, fontSize: 'var(--ed-fs-small)' }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }} />
-                  </div>
-                  <button type="button" onClick={handleExport}
-                    style={{
-                      width: '100%',
-                      fontSize: '11px',
-                      fontWeight: 500,
-                      letterSpacing: '0.08em',
-                      padding: '9px 8px',
-                      border: '1px solid var(--ed-border)',
-                      background: 'transparent',
-                      color: 'var(--ed-text-secondary)',
-                      cursor: 'pointer',
-                      fontFamily: 'var(--ed-font)',
-                      textTransform: 'uppercase',
-                      transition: 'border-color 200ms',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--ed-text-primary)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--ed-border)'; }}>
-                    Download {exportFormat === 'pdf' ? 'HTML' : 'Markdown'}
-                  </button>
                 </div>
               </div>
+              <button type="button" onClick={handleDelete}
+                style={{ width: '100%', fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', padding: '8px 8px', border: '1px solid #DDD0CE', background: 'transparent', color: '#B03A2A', cursor: 'pointer', fontFamily: 'var(--ed-font)', textTransform: 'uppercase', transition: 'all 0.12s', marginTop: '4px' }}
+                onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+              >Delete Recipe</button>
             </div>
           </div>
 
@@ -1304,7 +1110,6 @@ export default function RecipeDetailClient({
           .ed-app-layout { grid-template-columns: 1fr !important; }
           .ed-side-panel { position: static !important; height: auto !important; border-left: none !important; border-top: 2px solid var(--ed-text-primary) !important; }
           .ed-main-content { padding: 0 24px 60px !important; }
-          .ed-topbar { padding: 16px 24px !important; }
           .ed-intro { grid-template-columns: 1fr !important; }
           .ed-intro > div:first-child { border-right: none !important; border-bottom: 1px solid var(--ed-border); padding: 28px 0 !important; }
           .ed-intro > div:last-child { padding: 28px 0 !important; }

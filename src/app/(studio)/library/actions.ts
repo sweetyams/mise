@@ -192,6 +192,27 @@ export async function deleteRecipe(
 }
 
 // ---------------------------------------------------------------------------
+// deleteVersion — remove a single version snapshot
+// ---------------------------------------------------------------------------
+
+export async function deleteVersion(
+  versionId: string
+): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from('recipe_versions')
+    .delete()
+    .eq('id', versionId);
+
+  if (error) {
+    return { success: false, error: `Failed to delete version: ${error.message}` };
+  }
+
+  return { success: true, data: undefined };
+}
+
+// ---------------------------------------------------------------------------
 // searchRecipes — search by title (trigram), ingredient name, or tag
 // ---------------------------------------------------------------------------
 
