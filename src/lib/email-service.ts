@@ -7,7 +7,15 @@
 
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend() {
+  if (!_resend) {
+    const key = process.env.RESEND_API_KEY;
+    if (!key) throw new Error('RESEND_API_KEY is not configured.');
+    _resend = new Resend(key);
+  }
+  return _resend;
+}
 
 const FROM_EMAIL = 'MISE <noreply@mise.cooking>';
 
@@ -20,7 +28,7 @@ export async function sendWelcomeEmail(
   name: string
 ): Promise<{ error: string | null }> {
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: 'Welcome to MISE — Your Culinary Development Engine',
@@ -54,7 +62,7 @@ export async function sendPaymentFailedEmail(
   portalUrl: string
 ): Promise<{ error: string | null }> {
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: 'MISE — Payment Issue with Your Subscription',
@@ -84,7 +92,7 @@ export async function sendGracePeriodReminderEmail(
   portalUrl: string
 ): Promise<{ error: string | null }> {
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: `MISE — ${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left to update your payment`,
