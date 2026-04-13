@@ -43,7 +43,7 @@ export async function GET() {
     result = await supabase
       .from('fingerprints')
       .select('id, name, prompt_text, full_profile, version, is_default, updated_at')
-      .order('name');
+      .order('name') as typeof result;
   }
 
   if (result.error) {
@@ -97,8 +97,8 @@ export async function POST(request: Request) {
       .single());
   }
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error || !data) {
+    return NextResponse.json({ error: error?.message ?? 'Failed to create fingerprint' }, { status: 500 });
   }
 
   return NextResponse.json({ created: true, id: data.id });

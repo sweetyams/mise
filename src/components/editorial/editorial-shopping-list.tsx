@@ -60,6 +60,8 @@ export function EditorialShoppingList({ shoppingList, components }: EditorialSho
     );
   }
 
+  if (!shoppingList) return null;
+
   const pantrySet = new Set(
     (shoppingList.pantry_assumed ?? []).map((name) => name.toLowerCase())
   );

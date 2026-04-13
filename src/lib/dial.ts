@@ -94,12 +94,12 @@ export async function dialRecipe(
   }
 
   // 2. Assemble prompt with current recipe + dial direction
-  const fingerprintId = sourceRecipe.promptSnapshot?.fingerprint?.fingerprintId ?? '';
+  const fingerprintId = (sourceRecipe as any).promptSnapshot?.fingerprint?.fingerprintId ?? '';
   const assembled = await assemblePrompt(
     userId,
     fingerprintId,
     { dishDescription: `Evolve this recipe: ${sourceRecipe.title}` },
-    sourceRecipe.complexityMode
+    sourceRecipe.complexity_mode
   );
 
   const directionLabel = direction === 'custom_prompt' ? 'Custom Evolution' : DIAL_LABELS[direction];
@@ -199,7 +199,7 @@ export async function dialRecipe(
     assembled,
     rawOutput.length / 4, // rough token estimate
     fingerprintId,
-    sourceRecipe.promptSnapshot?.fingerprint?.fingerprintName ?? '',
+    (sourceRecipe as any).promptSnapshot?.fingerprint?.fingerprintName ?? '',
     userId
   );
 
@@ -218,7 +218,7 @@ export async function dialRecipe(
         assembled,
         0,
         fingerprintId,
-        sourceRecipe.promptSnapshot?.fingerprint?.fingerprintName ?? '',
+        (sourceRecipe as any).promptSnapshot?.fingerprint?.fingerprintName ?? '',
         userId
       );
       await createVersion(recipeId, sourceRecipe, sourceSnapshot);
@@ -323,8 +323,8 @@ function buildChangesSummary(
   if (removed.length > 0) parts.push(`Removed components: ${removed.join(', ')}.`);
 
   // Compare flavour
-  if (oldRecipe.flavour.dominant !== newRecipe.flavour.dominant) {
-    parts.push(`Flavour direction shifted from ${oldRecipe.flavour.dominant} to ${newRecipe.flavour.dominant}.`);
+  if (oldRecipe.flavour.dominant_element !== newRecipe.flavour.dominant_element) {
+    parts.push(`Flavour direction shifted from ${oldRecipe.flavour.dominant_element} to ${newRecipe.flavour.dominant_element}.`);
   }
 
   // Compare ingredient counts

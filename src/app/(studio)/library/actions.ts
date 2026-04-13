@@ -32,10 +32,10 @@ export interface RecipeRow {
   components: Recipe['components'];
   timeline: Recipe['timeline'];
   variations: Recipe['variations'];
-  related: Recipe['related'];
+  related: Recipe['relationships'];
   thinking: Recipe['thinking'];
   decision_lock_answers: Array<{ question: string; answer: string }> | null;
-  prompt_used: Recipe['promptSnapshot'];
+  prompt_used: any;
   complexity_mode: string;
   cooked: boolean;
   dev_notes: string | null;
@@ -81,7 +81,7 @@ export async function saveRecipe(
     .insert({
       id: recipe.id,
       user_id: userId,
-      fingerprint_id: recipe.promptSnapshot?.fingerprint?.fingerprintId ?? null,
+      fingerprint_id: (recipe as any).promptSnapshot?.fingerprint?.fingerprintId ?? null,
       title: recipe.title,
       version: recipe.version,
       intent: recipe.intent,
@@ -89,15 +89,15 @@ export async function saveRecipe(
       components: recipe.components,
       timeline: recipe.timeline,
       variations: recipe.variations,
-      related: recipe.related,
+      related: recipe.relationships,
       thinking: recipe.thinking,
       decision_lock_answers: recipe.decision_lock_answers ?? null,
-      prompt_used: recipe.promptSnapshot,
-      complexity_mode: recipe.complexityMode,
+      prompt_used: (recipe as any).promptSnapshot,
+      complexity_mode: recipe.complexity_mode,
       cooked: false,
       dev_notes: recipe.devNotes,
       tags: recipe.tags,
-      is_public: recipe.isPublic,
+      is_public: (recipe as any).isPublic,
     })
     .select('id')
     .single();

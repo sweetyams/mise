@@ -22,7 +22,7 @@ export async function GET() {
     result = await service
       .from('fingerprints')
       .select('id, name')
-      .order('name');
+      .order('name') as typeof result;
   }
 
   if (result.error) {

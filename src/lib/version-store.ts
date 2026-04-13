@@ -114,7 +114,7 @@ export async function getVersionHistory(
       versionNumber: row.version_number,
       createdAt: row.created_at,
       dialDirection: row.dial_direction as DialDirection | null,
-      fingerprint: recipeData?.fingerprint ?? snapshot?.fingerprint?.fingerprintName ?? null,
+      fingerprint: recipeData?.fingerprint_id ?? snapshot?.fingerprint?.fingerprintName ?? null,
       chefBrainVersion: snapshot?.chefBrain?.version ?? null,
     };
   });

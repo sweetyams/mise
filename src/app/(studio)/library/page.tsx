@@ -59,10 +59,10 @@ function clientSideSearch(recipes: RecipeRow[], query: string): RecipeRow[] {
     const occasion = typeof intent?.occasion === 'string' ? intent.occasion : '';
     const mood = typeof intent?.mood === 'string' ? intent.mood : '';
     const effort = typeof intent?.effort === 'string' ? intent.effort : '';
-    const seasonVal = intent?.season;
+    const seasonVal = intent?.season as string | string[] | undefined;
     const seasonMatch = typeof seasonVal === 'string'
       ? seasonVal.toLowerCase().startsWith(q)
-      : Array.isArray(seasonVal) && seasonVal.some((s) => typeof s === 'string' && s.toLowerCase().startsWith(q));
+      : Array.isArray(seasonVal) && seasonVal.some((s: string) => typeof s === 'string' && s.toLowerCase().startsWith(q));
 
     if (
       occasion.toLowerCase().startsWith(q) ||
@@ -284,7 +284,7 @@ export default function LibraryPage() {
 
         {/* Facet filter controls */}
         {(() => {
-          const facetRows: Array<{ label: string; key: keyof FacetFilters; options: string[] }> = [
+          const facetRows = ([
             { label: 'Chef', key: 'fingerprint', options: filterOptions.fingerprints },
             { label: 'Occasion', key: 'occasion', options: filterOptions.occasions },
             { label: 'Mood', key: 'mood', options: filterOptions.moods },
@@ -292,7 +292,7 @@ export default function LibraryPage() {
             { label: 'Season', key: 'season', options: filterOptions.seasons },
             { label: 'Dietary', key: 'dietary', options: filterOptions.dietaryTags },
             { label: 'Element', key: 'dominantElement', options: filterOptions.dominantElements },
-          ].filter((row) => row.options.length >= 2);
+          ] as Array<{ label: string; key: keyof FacetFilters; options: string[] }>).filter((row) => row.options.length >= 2);
 
           if (facetRows.length === 0) return null;
 

@@ -149,7 +149,7 @@ export function filterByFacets(
       if (intent?.effort !== filters.effort) return false;
     }
     if (filters.season != null) {
-      const season = intent?.season;
+      const season = intent?.season as string | string[] | undefined;
       if (typeof season === 'string') {
         if (season !== filters.season) return false;
       } else if (Array.isArray(season)) {
