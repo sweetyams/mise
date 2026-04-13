@@ -417,8 +417,8 @@ export default function RecipeDetailClient({
       setUnavailableIngredients(newSet);
       if (!substitutionResults[key]) {
         setSubstitutionLoading(key);
-        const recipeContext = `${recipe.title} — ${recipe.thinking.approach ?? ''}`;
-        const result = await suggestSubstitutions(ingredient, recipeContext, recipe.fingerprint);
+        const recipeContext = `${recipe.title} — ${recipe.thinking.origin ?? ''}`;
+        const result = await suggestSubstitutions(ingredient, recipeContext, recipe.fingerprint_id);
         setSubstitutionLoading(null);
         if (result.success) { setSubstitutionResults((prev) => ({ ...prev, [key]: result.data })); }
       }
@@ -472,7 +472,7 @@ export default function RecipeDetailClient({
             effort={recipe.intent?.effort}
             totalTime={recipe.intent?.total_time_minutes}
             season={recipe.intent?.season}
-            fingerprint={recipe.fingerprint}
+            fingerprint={recipe.fingerprint_id}
             feeds={recipe.intent?.feeds}
             activeTime={recipe.intent?.active_time_minutes}
             prepAheadNotes={recipe.intent?.prep_ahead_notes}
@@ -743,7 +743,7 @@ export default function RecipeDetailClient({
               <EditorialVariations variations={recipe.variations} />
 
               {/* Pairs With */}
-              {recipe.related?.pairs_with && recipe.related.pairs_with.length > 0 && (
+              {recipe.relationships?.pairs_with && recipe.relationships.pairs_with.length > 0 && (
                 <div style={{ padding: '40px 0', borderBottom: '1px solid var(--ed-border)' }}>
                   <div style={{
                     display: 'grid',
@@ -767,7 +767,7 @@ export default function RecipeDetailClient({
                         lineHeight: 1.65,
                         margin: 0,
                       }}>
-                        {recipe.related.pairs_with.join(' · ')}
+                        {recipe.relationships.pairs_with.join(' · ')}
                       </p>
                     </div>
                   </div>
@@ -831,8 +831,8 @@ export default function RecipeDetailClient({
               color: 'var(--ed-text-muted)',
             }}>
               <span style={{ color: 'var(--ed-text-primary)' }}>MISE</span>
-              {recipe.fingerprint ? ` · ${recipe.fingerprint}` : ''}
-              {recipe.complexityMode ? ` · ${recipe.complexityMode}` : ''}
+              {recipe.fingerprint_id ? ` · ${recipe.fingerprint_id}` : ''}
+              {recipe.complexity_mode ? ` · ${recipe.complexity_mode}` : ''}
             </span>
             {recipe.intent?.occasion && (
               <span style={{
@@ -1029,7 +1029,7 @@ export default function RecipeDetailClient({
                           {ing.name}
                         </label>
                         {isLoading && (<div style={{ marginLeft: '24px', marginTop: '2px', fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-secondary)' }}>Finding alternatives…</div>)}
-                        {isUnavailable && subs && subs.length > 0 && (<div style={{ marginLeft: '24px', marginTop: '2px' }}>{subs.map((sub, i) => (<div key={i} style={{ fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-secondary)', padding: '1px 0' }}>↳ {sub.amount} {sub.unit} {sub.name}{sub.notes && <span style={{ color: 'var(--ed-text-muted)' }}> — {sub.notes}</span>}</div>))}</div>)}
+                        {isUnavailable && subs && subs.length > 0 && (<div style={{ marginLeft: '24px', marginTop: '2px' }}>{subs.map((sub, i) => (<div key={i} style={{ fontSize: 'var(--ed-fs-small)', color: 'var(--ed-text-secondary)', padding: '1px 0' }}>↳ {sub.ingredient}{sub.amount_adjustment && <span> ({sub.amount_adjustment})</span>}{sub.flavour_note && <span style={{ color: 'var(--ed-text-muted)' }}> — {sub.flavour_note}</span>}</div>))}</div>)}
                       </div>
                     );
                   })}
