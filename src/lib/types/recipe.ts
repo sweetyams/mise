@@ -488,6 +488,11 @@ export interface Recipe {
 
   // meta
   meta: RecipeMeta;
+
+  // legacy compat fields (used by rowToRecipe mappers)
+  devNotes?: string | null;
+  tags: string[];
+  cooked: boolean;
 }
 
 // ---------------------------------------------------------------------------
