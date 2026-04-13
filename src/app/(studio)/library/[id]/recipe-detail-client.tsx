@@ -352,7 +352,7 @@ export default function RecipeDetailClient({
           versionNumber: data.versionNumber,
           createdAt: new Date().toISOString(),
           dialDirection: direction === 'custom_prompt' ? 'custom_prompt' : direction,
-          fingerprint: recipe.fingerprint ?? null,
+          fingerprint: recipe.fingerprint_id ?? null,
           chefBrainVersion: null,
         };
         setLocalVersions(prev => [...prev, newEntry]);
