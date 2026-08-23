@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 
 const NAV_ITEMS = [
   { href: '/library', label: 'Library' },
+  { href: '/imports', label: 'Imports' },
   { href: '/settings', label: 'Settings' },
   { href: '/admin', label: 'Admin' },
 ];
