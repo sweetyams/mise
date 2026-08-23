@@ -38,27 +38,61 @@ function normalizeUrl(url: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Strategy 1: Use Instagram's oEmbed endpoint (no auth required for public posts).
- * Returns HTML with caption embedded. Rate-limited but reliable.
+ * Build a ScrapingBee proxied URL if API key is available.
+ * Falls back to direct fetch if not configured.
  */
-async function fetchViaOEmbed(postUrl: string): Promise<ScrapedPost | null> {
-  const oembedUrl = `https://www.instagram.com/api/v1/oembed/?url=${encodeURIComponent(postUrl)}`;
+function buildFetchUrl(targetUrl: string, opts?: { renderJs?: boolean }): { url: string; headers: Record<string, string> } {
+  const apiKey = process.env.SCRAPINGBEE_API_KEY;
+  if (apiKey) {
+    const params = new URLSearchParams({
+      api_key: apiKey,
+      url: targetUrl,
+      render_js: opts?.renderJs ? 'true' : 'false',
+      premium_proxy: 'true',
+    });
+    return {
+      url: `https://app.scrapingbee.com/api/v1/?${params.toString()}`,
+      headers: {},
+    };
+  }
 
-  const response = await fetch(oembedUrl, {
+  // Fallback: direct fetch (may be blocked by Instagram)
+  return {
+    url: targetUrl,
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
     },
-    signal: AbortSignal.timeout(10_000),
+  };
+}
+
+/**
+ * Strategy 1: Use Instagram's oEmbed endpoint.
+ * Returns HTML with caption embedded. Works well through proxies.
+ */
+async function fetchViaOEmbed(postUrl: string): Promise<ScrapedPost | null> {
+  const oembedUrl = `https://www.instagram.com/api/v1/oembed/?url=${encodeURIComponent(postUrl)}`;
+  const { url, headers } = buildFetchUrl(oembedUrl);
+
+  const response = await fetch(url, {
+    headers,
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) return null;
 
-  const data = (await response.json()) as {
+  const text = await response.text();
+  let data: {
     title?: string;
     author_name?: string;
     thumbnail_url?: string;
     html?: string;
   };
+
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
 
   const caption = data.title || '';
   const imageUrls: string[] = [];
@@ -77,17 +111,19 @@ async function fetchViaOEmbed(postUrl: string): Promise<ScrapedPost | null> {
 
 /**
  * Strategy 2: Fetch the post page directly and extract from meta tags.
- * Fallback if oEmbed is rate-limited.
+ * Fallback if oEmbed is rate-limited. Uses ScrapingBee for reliable access.
  */
 async function fetchViaMetaTags(postUrl: string): Promise<ScrapedPost | null> {
-  const response = await fetch(postUrl, {
+  const { url, headers } = buildFetchUrl(postUrl);
+
+  const response = await fetch(url, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      ...headers,
       'Accept': 'text/html',
       'Accept-Language': 'en-US,en;q=0.9',
     },
     redirect: 'follow',
-    signal: AbortSignal.timeout(10_000),
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) return null;
